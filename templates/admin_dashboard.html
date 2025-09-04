@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Admin Dashboard</h2>
+    
+    <div class="row mt-4">
+        <!-- System Status Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>System Uptime:</span>
+                        <span id="uptime">Loading...</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Active Users:</span>
+                        <span id="active-users">Loading...</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Database Status:</span>
+                        <span id="db-status" class="badge bg-success">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Alerts Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">Security Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group" id="security-alerts">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Failed Login Attempts (24h)
+                            <span class="badge bg-danger rounded-pill" id="failed-logins">Loading...</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Suspicious Activities
+                            <span class="badge bg-warning rounded-pill" id="suspicious-activities">Loading...</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Activity Log -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Recent Activity Log</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activity-log">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading activity log...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function to update dashboard data
+    function updateDashboard() {
+        fetch('/api/admin/dashboard-data')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('uptime').textContent = data.uptime;
+                document.getElementById('active-users').textContent = data.activeUsers;
+                document.getElementById('failed-logins').textContent = data.failedLogins;
+                document.getElementById('suspicious-activities').textContent = data.suspiciousActivities;
+                
+                // Update activity log
+                const activityLog = document.getElementById('activity-log');
+                activityLog.innerHTML = data.recentActivities.map(activity => `
+                    <tr>
+                        <td>${activity.timestamp}</td>
+                        <td>${activity.user}</td>
+                        <td>${activity.action}</td>
+                        <td><span class="badge bg-${activity.status === 'success' ? 'success' : 'danger'}">${activity.status}</span></td>
+                    </tr>
+                `).join('');
+            })
+            .catch(error => console.error('Error updating dashboard:', error));
+    }
+
+    // Update dashboard every 30 seconds
+    updateDashboard();
+    setInterval(updateDashboard, 30000);
+</script>
+{% endblock %}

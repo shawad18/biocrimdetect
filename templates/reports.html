@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Reports - Cybersecurity Command Center</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        html {
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0e17 0%, #1a1a2e 50%, #16213e 100%);
+            background-attachment: fixed;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+        
+        .reports-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            overflow: visible;
+            min-height: calc(100vh - 40px);
+        }
+        
+        .reports-header {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.9));
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .reports-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+            animation: scan 4s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .reports-title {
+            color: #00ff88;
+            font-size: 3rem;
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .reports-subtitle {
+            color: #b0e0e6;
+            font-size: 1.2rem;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .report-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-panel {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.9));
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
+        }
+        
+        .control-title {
+            color: #00ff88;
+            font-size: 1.3rem;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #b0e0e6;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: rgba(0, 255, 136, 0.6);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .btn-generate {
+            background: linear-gradient(135deg, #00ff88, #007aff);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.4);
+        }
+        
+        .report-templates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .template-card {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.9));
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .template-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 255, 136, 0.6);
+            box-shadow: 0 15px 35px rgba(0, 255, 136, 0.3);
+        }
+        
+        .template-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+        
+        .template-card:hover::before {
+            left: 100%;
+        }
+        
+        .template-icon {
+            font-size: 3rem;
+            color: #00ff88;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+        
+        .template-title {
+            color: #00ff88;
+            font-size: 1.4rem;
+            margin: 0 0 10px 0;
+            font-weight: 700;
+        }
+        
+        .template-description {
+            color: #b0e0e6;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        
+        .template-features {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .template-features li {
+            color: #b0e0e6;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .template-features li::before {
+            content: '✓';
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .report-preview {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.9));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
+            margin-bottom: 30px;
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .preview-title {
+            color: #00ff88;
+            font-size: 1.8rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn-export {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-export:hover {
+            background: rgba(0, 255, 136, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .report-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .chart-container {
+            background: rgba(0, 20, 40, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            height: 300px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #b0e0e6;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .back-button:hover {
+            background: rgba(0, 255, 136, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-content {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.9));
+            border-radius: 20px;
+            padding: 40px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 255, 136, 0.3);
+            border-top: 4px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .report-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .report-templates {
+                grid-template-columns: 1fr;
+            }
+            
+            .report-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .export-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/home" class="back-button">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3 style="color: #00ff88; margin: 0;">Generating Report...</h3>
+            <p style="color: #b0e0e6; margin: 10px 0 0 0;">Please wait while we compile your security data</p>
+        </div>
+    </div>
+    
+    <div class="reports-container">
+        <div class="reports-header">
+            <h1 class="reports-title">Security Reports</h1>
+            <p class="reports-subtitle">Generate comprehensive security analysis and intelligence reports</p>
+        </div>
+        
+        <div class="report-controls">
+            <div class="control-panel">
+                <h3 class="control-title">
+                    <i class="fas fa-calendar-alt"></i>
+                    Date Range
+                </h3>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="startDate" value="2025-01-01">
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" id="endDate" value="2025-01-20">
+                </div>
+            </div>
+            
+            <div class="control-panel">
+                <h3 class="control-title">
+                    <i class="fas fa-filter"></i>
+                    Report Filters
+                </h3>
+                <div class="form-group">
+                    <label>Department</label>
+                    <select id="department">
+                        <option value="all">All Departments</option>
+                        <option value="cybersec">Cybersecurity</option>
+                        <option value="forensics">Digital Forensics</option>
+                        <option value="intelligence">Threat Intelligence</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Priority Level</label>
+                    <select id="priority">
+                        <option value="all">All Levels</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-panel">
+                <h3 class="control-title">
+                    <i class="fas fa-cog"></i>
+                    Export Options
+                </h3>
+                <div class="form-group">
+                    <label>Format</label>
+                    <select id="exportFormat">
+                        <option value="pdf">PDF Report</option>
+                        <option value="excel">Excel Spreadsheet</option>
+                        <option value="json">JSON Data</option>
+                        <option value="csv">CSV File</option>
+                    </select>
+                </div>
+                <button class="btn-generate" onclick="generateReport()">
+                    <i class="fas fa-file-alt"></i>
+                    Generate Report
+                </button>
+            </div>
+        </div>
+        
+        <div class="report-templates">
+            <div class="template-card" onclick="selectTemplate('security')">
+                <div class="template-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3 class="template-title">Security Overview</h3>
+                <p class="template-description">Comprehensive security status report with threat analysis and system health metrics.</p>
+                <ul class="template-features">
+                    <li>Threat detection statistics</li>
+                    <li>System vulnerability assessment</li>
+                    <li>Incident response metrics</li>
+                    <li>Security compliance status</li>
+                </ul>
+            </div>
+            
+            <div class="template-card" onclick="selectTemplate('forensics')">
+                <div class="template-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h3 class="template-title">Digital Forensics</h3>
+                <p class="template-description">Detailed forensic analysis report with evidence tracking and case management data.</p>
+                <ul class="template-features">
+                    <li>Evidence collection summary</li>
+                    <li>Case progression tracking</li>
+                    <li>Biometric match results</li>
+                    <li>Investigation timeline</li>
+                </ul>
+            </div>
+            
+            <div class="template-card" onclick="selectTemplate('intelligence')">
+                <div class="template-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3 class="template-title">Threat Intelligence</h3>
+                <p class="template-description">Advanced threat intelligence report with predictive analysis and risk assessment.</p>
+                <ul class="template-features">
+                    <li>Threat landscape analysis</li>
+                    <li>Risk assessment matrix</li>
+                    <li>Predictive threat modeling</li>
+                    <li>Mitigation recommendations</li>
+                </ul>
+            </div>
+            
+            <div class="template-card" onclick="selectTemplate('compliance')">
+                <div class="template-icon">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <h3 class="template-title">Compliance Audit</h3>
+                <p class="template-description">Regulatory compliance report with audit trails and certification status.</p>
+                <ul class="template-features">
+                    <li>Regulatory compliance status</li>
+                    <li>Audit trail documentation</li>
+                    <li>Policy adherence metrics</li>
+                    <li>Certification tracking</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="report-preview" id="reportPreview" style="display: none;">
+            <div class="preview-header">
+                <h2 class="preview-title">Report Preview</h2>
+                <div class="export-buttons">
+                    <button class="btn-export" onclick="exportReport('pdf')">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                    <button class="btn-export" onclick="exportReport('excel')">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                    <button class="btn-export" onclick="exportReport('print')">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalThreats">247</div>
+                    <div class="stat-label">Total Threats</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeCases">89</div>
+                    <div class="stat-label">Active Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="resolvedIncidents">156</div>
+                    <div class="stat-label">Resolved Incidents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="complianceScore">94%</div>
+                    <div class="stat-label">Compliance Score</div>
+                </div>
+            </div>
+            
+            <div class="report-content">
+                <div class="chart-container">
+                    <canvas id="threatChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="incidentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedTemplate = null;
+        let threatChart = null;
+        let incidentChart = null;
+        
+        function selectTemplate(template) {
+            selectedTemplate = template;
+            
+            // Remove active class from all cards
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+            });
+            
+            // Add active class to selected card
+            event.currentTarget.style.borderColor = 'rgba(0, 255, 136, 0.8)';
+            
+            console.log('Selected template:', template);
+        }
+        
+        function generateReport() {
+            // Show loading overlay
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            // Get form data
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const priority = document.getElementById('priority').value;
+            const exportFormat = document.getElementById('exportFormat').value;
+            
+            // Make API call to generate report
+            fetch('/api/reports/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'criminal_database',
+                    start_date: startDate,
+                    end_date: endDate,
+                    priority: priority,
+                    format: exportFormat
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                if (data.success) {
+                    // Update statistics with real data
+                    document.getElementById('totalThreats').textContent = data.report.statistics.total_criminals;
+                    document.getElementById('activeCases').textContent = data.report.statistics.total_cases;
+                    document.getElementById('resolvedIncidents').textContent = data.report.statistics.crime_types_count;
+                    document.getElementById('complianceScore').textContent = data.report.statistics.avg_age + ' avg age';
+                    
+                    // Update labels
+                    document.querySelector('#totalThreats').nextElementSibling.textContent = 'Total Criminals';
+                    document.querySelector('#activeCases').nextElementSibling.textContent = 'Active Cases';
+                    document.querySelector('#resolvedIncidents').nextElementSibling.textContent = 'Crime Types';
+                    document.querySelector('#complianceScore').nextElementSibling.textContent = 'Average Age';
+                    
+                    // Show report preview
+                    document.getElementById('reportPreview').style.display = 'block';
+                    
+                    // Generate charts with real data
+                    generateChartsWithData(data.report);
+                    
+                    // Scroll to preview
+                    document.getElementById('reportPreview').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Error generating report: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                console.error('Error:', error);
+                alert('Error generating report. Please try again.');
+            });
+        }
+        
+        function generateChartsWithData(reportData) {
+            // Crime Distribution Chart
+            const threatCtx = document.getElementById('threatChart').getContext('2d');
+            
+            // Prepare crime data
+            const crimeLabels = Object.keys(reportData.crime_breakdown);
+            const crimeData = Object.values(reportData.crime_breakdown);
+            
+            // Prepare age distribution data
+            const ageLabels = Object.keys(reportData.age_distribution);
+            const ageData = Object.values(reportData.age_distribution);
+            
+            // Create crime distribution chart
+            if (threatChart) {
+                threatChart.destroy();
+            }
+            
+            threatChart = new Chart(threatCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: crimeLabels,
+                    datasets: [{
+                        data: crimeData,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 159, 64, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#b0e0e6',
+                                padding: 20
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Crime Type Distribution',
+                            color: '#00ff88',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Age Distribution Chart
+            const incidentCtx = document.getElementById('incidentChart').getContext('2d');
+            
+            if (incidentChart) {
+                incidentChart.destroy();
+            }
+            
+            incidentChart = new Chart(incidentCtx, {
+                type: 'bar',
+                data: {
+                    labels: ageLabels,
+                    datasets: [{
+                        label: 'Number of Criminals',
+                        data: ageData,
+                        backgroundColor: 'rgba(0, 255, 136, 0.6)',
+                        borderColor: 'rgba(0, 255, 136, 1)',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#b0e0e6'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Age Distribution',
+                            color: '#00ff88',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#b0e0e6'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 136, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#b0e0e6'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 136, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function generateCharts() {
+            // Fallback function for backward compatibility
+            const threatCtx = document.getElementById('threatChart').getContext('2d');
+            if (threatChart) threatChart.destroy();
+            
+            threatChart = new Chart(threatCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Malware', 'Phishing', 'Intrusion', 'Data Breach', 'Other'],
+                    datasets: [{
+                        data: [35, 25, 20, 15, 5],
+                        backgroundColor: [
+                            '#ff453a',
+                            '#ffd60a',
+                            '#00ff88',
+                            '#007aff',
+                            '#af52de'
+                        ],
+                        borderWidth: 2,
+                        borderColor: 'rgba(0, 255, 136, 0.3)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#b0e0e6',
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Incident Timeline Chart
+            const incidentCtx = document.getElementById('incidentChart').getContext('2d');
+            if (incidentChart) incidentChart.destroy();
+            
+            incidentChart = new Chart(incidentCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Security Incidents',
+                        data: [12, 19, 8, 15, 10, 7],
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#b0e0e6'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#b0e0e6'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 136, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#b0e0e6'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 136, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function exportReport(format) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+            
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+                
+                if (format === 'pdf') {
+                    generatePDF();
+                } else if (format === 'excel') {
+                    alert('Excel export functionality would be implemented here.');
+                } else if (format === 'print') {
+                    window.print();
+                }
+            }, 2000);
+        }
+        
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.text('Cybersecurity Report', 20, 30);
+            
+            // Add date
+            doc.setFontSize(12);
+            doc.text('Generated: ' + new Date().toLocaleDateString(), 20, 45);
+            
+            // Add statistics
+            doc.setFontSize(14);
+            doc.text('Security Statistics:', 20, 65);
+            
+            doc.setFontSize(10);
+            doc.text('Total Threats: 247', 20, 80);
+            doc.text('Active Cases: 89', 20, 90);
+            doc.text('Resolved Incidents: 156', 20, 100);
+            doc.text('Compliance Score: 94%', 20, 110);
+            
+            // Add more content
+            doc.text('Report Details:', 20, 130);
+            doc.text('This report provides a comprehensive overview of the current', 20, 145);
+            doc.text('cybersecurity status including threat analysis, incident tracking,', 20, 155);
+            doc.text('and compliance metrics for the specified time period.', 20, 165);
+            
+            // Save the PDF
+            doc.save('cybersecurity-report-' + new Date().toISOString().split('T')[0] + '.pdf');
+        }
+        
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            
+            document.getElementById('startDate').value = lastMonth.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>

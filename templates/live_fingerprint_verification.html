@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live 10-Finger Biometric Scanner - Crime Detection System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: rgb(40, 58, 117);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+         
+          .container {
+              max-width: 1600px;
+              margin: 0 auto;
+              padding: 20px;
+              height: calc(100vh - 40px);
+              overflow-y: auto;
+              overflow-x: hidden;
+          }
+          
+          .header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding: 25px;
+              background: rgb(40, 58, 117);
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              position: relative;
+              overflow: hidden;
+          }
+          
+          .header::before {
+              content: '';
+              position: absolute;
+              top: -50%;
+              left: -50%;
+              width: 200%;
+              height: 200%;
+              background: linear-gradient(45deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+              animation: scan 4s linear infinite;
+          }
+          
+          .header h1 {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              font-size: 2.5rem;
+              font-weight: 900;
+              color: #ffffff;
+              margin-bottom: 10px;
+              position: relative;
+              z-index: 2;
+          }
+          
+          .header p {
+              font-size: 1.1rem;
+              color: #b0e0e6;
+              position: relative;
+              z-index: 2;
+          }
+          
+          .main-content {
+              display: grid;
+              grid-template-columns: 2fr 1fr;
+              gap: 25px;
+              margin-bottom: 20px;
+          }
+          
+          .scanner-section {
+              background: rgb(40, 58, 117);
+              border-radius: 8px;
+              padding: 25px;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          .control-panel {
+              background: rgb(40, 58, 117);
+              border-radius: 8px;
+              padding: 25px;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              height: fit-content;
+          }
+          
+          .scanner-title {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              color: #ffffff;
+              font-size: 1.4rem;
+              margin-bottom: 20px;
+              text-align: center;
+          }
+         
+         @keyframes fingerPulse {
+            0%, 100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+            }
+            50% { 
+                transform: scale(1.02); 
+                box-shadow: 0 0 20px rgba(255, 152, 0, 0.6);
+            }
+        }
+        
+        @keyframes progressFill {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+        
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .fingers-grid {
+             display: grid;
+             grid-template-columns: repeat(5, 1fr);
+             gap: 15px;
+             margin-bottom: 20px;
+         }
+         
+         .finger-slot {
+             position: relative;
+             width: 100%;
+             height: 120px;
+             background: rgba(0, 0, 0, 0.5);
+             border: 2px solid rgba(0, 255, 136, 0.3);
+             border-radius: 15px;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+             justify-content: center;
+             cursor: pointer;
+             transition: all 0.3s ease;
+             overflow: hidden;
+         }
+         
+         .finger-slot:hover {
+             border-color: rgba(0, 255, 136, 0.6);
+             background: rgba(0, 255, 136, 0.1);
+         }
+         
+         .finger-slot.scanning {
+             border-color: #ff9800;
+             background: rgba(255, 152, 0, 0.1);
+             animation: fingerPulse 1.5s infinite;
+         }
+         
+         .finger-slot.scanned {
+             border-color: #00ff88;
+             background: rgba(0, 255, 136, 0.2);
+             box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+         }
+         
+         .finger-slot.match {
+             border-color: #4caf50;
+             background: rgba(76, 175, 80, 0.3);
+             box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+         }
+         
+         .finger-icon {
+             font-size: 2.5rem;
+             color: rgba(255, 255, 255, 0.3);
+             margin-bottom: 5px;
+             transition: all 0.3s ease;
+         }
+         
+         .finger-slot.scanning .finger-icon {
+             color: #ff9800;
+             animation: rotate 2s linear infinite;
+         }
+         
+         .finger-slot.scanned .finger-icon {
+             color: #00ff88;
+         }
+         
+         .finger-slot.match .finger-icon {
+             color: #4caf50;
+         }
+         
+         .finger-label {
+             font-size: 0.8rem;
+             color: #b0e0e6;
+             font-weight: 500;
+             text-align: center;
+         }
+         
+         .finger-slot.scanning .finger-label {
+             color: #ff9800;
+         }
+         
+         .finger-slot.scanned .finger-label {
+             color: #00ff88;
+         }
+         
+         .finger-slot.match .finger-label {
+             color: #4caf50;
+         }
+         
+         .scan-progress {
+             position: absolute;
+             bottom: 0;
+             left: 0;
+             height: 4px;
+             background: #00ff88;
+             width: 0%;
+             transition: width 0.3s ease;
+             border-radius: 0 0 13px 13px;
+         }
+         
+         .finger-slot.scanning .scan-progress {
+             animation: progressFill 2s ease-in-out infinite;
+         }
+         
+         .finger-slot.scanned .scan-progress {
+             width: 100%;
+         }
+         
+         .hands-container {
+             display: grid;
+             grid-template-columns: 1fr 1fr;
+             gap: 20px;
+             margin-bottom: 20px;
+         }
+         
+         .hand-section {
+             text-align: center;
+         }
+         
+         .hand-title {
+             font-family: 'Times New Roman', serif;
+             color: #00ff88;
+             font-size: 1.1rem;
+             margin-bottom: 15px;
+             text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+         }
+         
+         .status-display {
+             background: rgba(0, 0, 0, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 20px;
+             border: 1px solid rgba(0, 255, 136, 0.3);
+         }
+         
+         .status-item {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             margin-bottom: 10px;
+             font-size: 0.9rem;
+         }
+         
+         .status-label {
+             color: #b0e0e6;
+         }
+         
+         .status-value {
+             color: #00ff88;
+             font-weight: 600;
+         }
+         
+         .overall-progress {
+             background: rgba(0, 0, 0, 0.3);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 20px;
+             text-align: center;
+         }
+         
+         .progress-bar {
+             width: 100%;
+             height: 20px;
+             background: rgba(0, 0, 0, 0.5);
+             border-radius: 10px;
+             overflow: hidden;
+             margin: 10px 0;
+         }
+         
+         .progress-fill {
+             height: 100%;
+             background: linear-gradient(90deg, #00ff88, #00cc6a);
+             width: 0%;
+             transition: width 0.5s ease;
+             border-radius: 10px;
+         }
+         
+         .progress-text {
+             font-family: 'Times New Roman', serif;
+             color: #00ff88;
+             font-size: 1.2rem;
+             font-weight: 700;
+             margin-bottom: 5px;
+         }
+         
+         .controls {
+             display: flex;
+             flex-direction: column;
+             gap: 15px;
+         }
+         
+         .btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             gap: 10px;
+             padding: 15px 25px;
+             background: linear-gradient(135deg, #00ff88, #00cc6a);
+             color: #000;
+             text-decoration: none;
+             border-radius: 10px;
+             border: none;
+             cursor: pointer;
+             font-size: 1rem;
+             font-weight: 600;
+             font-family: 'Times New Roman', serif;
+             transition: all 0.3s ease;
+             position: relative;
+             overflow: hidden;
+         }
+         
+         .btn::before {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: -100%;
+             width: 100%;
+             height: 100%;
+             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+             transition: left 0.5s;
+         }
+         
+         .btn:hover::before {
+             left: 100%;
+         }
+         
+         .btn:hover {
+             transform: translateY(-2px);
+             box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+         }
+         
+         .btn:disabled {
+             background: linear-gradient(135deg, #555, #777);
+             color: #999;
+             cursor: not-allowed;
+             transform: none;
+             box-shadow: none;
+         }
+         
+         .btn-danger {
+             background: linear-gradient(135deg, #ff4757, #ff3838);
+             color: white;
+         }
+         
+         .btn-danger:hover {
+             box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
+         }
+         
+         .btn-primary {
+             background: linear-gradient(135deg, #3742fa, #2f3542);
+             color: white;
+         }
+         
+         .btn-secondary {
+             background: linear-gradient(135deg, #747d8c, #57606f);
+             color: white;
+         }
+        
+        .fingers-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .finger-slot {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .finger-slot:hover {
+            border-color: rgba(0, 255, 136, 0.6);
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .finger-slot.scanning {
+            border-color: #ff9800;
+            background: rgba(255, 152, 0, 0.1);
+            animation: fingerPulse 1.5s infinite;
+        }
+        
+        .finger-slot.scanned {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .finger-slot.match {
+            border-color: #4caf50;
+            background: rgba(76, 175, 80, 0.3);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+        }
+        
+        .finger-icon {
+            font-size: 2.5rem;
+            color: rgba(255, 255, 255, 0.3);
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .finger-slot.scanning .finger-icon {
+            color: #ff9800;
+            animation: rotate 2s linear infinite;
+        }
+        
+        .finger-slot.scanned .finger-icon {
+            color: #00ff88;
+        }
+        
+        .finger-slot.match .finger-icon {
+            color: #4caf50;
+        }
+        
+        .finger-label {
+            font-size: 0.8rem;
+            color: #b0e0e6;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .finger-slot.scanning .finger-label {
+            color: #ff9800;
+        }
+        
+        .finger-slot.scanned .finger-label {
+            color: #00ff88;
+        }
+        
+        .finger-slot.match .finger-label {
+            color: #4caf50;
+        }
+        
+        .scan-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #00ff88;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 0 0 13px 13px;
+        }
+        
+        .finger-slot.scanning .scan-progress {
+            animation: progressFill 2s ease-in-out infinite;
+        }
+        
+        .finger-slot.scanned .scan-progress {
+            width: 100%;
+        }
+        
+        .hands-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .hand-section {
+            text-align: center;
+        }
+        
+        .hand-title {
+            font-family: 'Times New Roman', serif;
+            color: #00ff88;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+        }
+        
+        .status-display {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .status-label {
+            color: #b0e0e6;
+        }
+        
+        .status-value {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        
+        .overall-progress {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            font-family: 'Times New Roman', serif;
+            color: #00ff88;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            text-decoration: none;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Times New Roman', serif;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn:disabled {
+            background: linear-gradient(135deg, #555, #777);
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3742fa, #2f3542);
+            color: white;
+        }
+        
+        .btn-secondary {
+             background: linear-gradient(135deg, #747d8c, #57606f);
+             color: white;
+         }
+         
+         /* Results Display */
+         .results-section {
+             background: rgba(0, 20, 40, 0.8);
+             border-radius: 15px;
+             padding: 20px;
+             margin-top: 20px;
+             border: 2px solid rgba(0, 255, 136, 0.2);
+             display: none;
+         }
+         
+         .results-section.show {
+             display: block;
+             animation: slideUp 0.5s ease;
+         }
+         
+         .match-result {
+             background: rgba(76, 175, 80, 0.2);
+             border: 1px solid rgba(76, 175, 80, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         .no-match-result {
+             background: rgba(255, 152, 0, 0.2);
+             border: 1px solid rgba(255, 152, 0, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         /* Results Display */
+         .results-section {
+             background: rgba(0, 20, 40, 0.8);
+             border-radius: 15px;
+             padding: 20px;
+             margin-top: 20px;
+             border: 2px solid rgba(0, 255, 136, 0.2);
+             display: none;
+         }
+         
+         .results-section.show {
+             display: block;
+             animation: slideUp 0.5s ease;
+         }
+         
+         .match-result {
+             background: rgba(76, 175, 80, 0.2);
+             border: 1px solid rgba(76, 175, 80, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         .no-match-result {
+             background: rgba(255, 152, 0, 0.2);
+             border: 1px solid rgba(255, 152, 0, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         /* Results Display */
+         .results-section {
+             background: rgba(0, 20, 40, 0.8);
+             border-radius: 15px;
+             padding: 20px;
+             margin-top: 20px;
+             border: 2px solid rgba(0, 255, 136, 0.2);
+             display: none;
+         }
+         
+         .results-section.show {
+             display: block;
+             animation: slideUp 0.5s ease;
+         }
+         
+         .match-result {
+             background: rgba(76, 175, 80, 0.2);
+             border: 1px solid rgba(76, 175, 80, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         .no-match-result {
+             background: rgba(255, 152, 0, 0.2);
+             border: 1px solid rgba(255, 152, 0, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         /* Keyframe Animations */
+         @keyframes scan {
+             0% { transform: translateX(-100%) translateY(-100%) rotate(0deg); }
+             100% { transform: translateX(100%) translateY(100%) rotate(0deg); }
+         }
+         
+         @keyframes fingerPulse {
+             0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(255, 152, 0, 0.4); }
+             50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 152, 0, 0.8); }
+         }
+         
+         @keyframes rotate {
+             0% { transform: rotate(0deg); }
+             100% { transform: rotate(360deg); }
+         }
+         
+         @keyframes progressFill {
+             0% { width: 0%; }
+             50% { width: 70%; }
+             100% { width: 100%; }
+         }
+         
+         @keyframes slideUp {
+             from { transform: translateY(30px); opacity: 0; }
+             to { transform: translateY(0); opacity: 1; }
+         }
+         
+         /* Responsive Design */
+         @media (max-width: 1200px) {
+             .main-content {
+                 grid-template-columns: 1fr;
+                 gap: 20px;
+             }
+             
+             .control-panel {
+                 order: -1;
+             }
+             
+             .fingers-grid {
+                 grid-template-columns: repeat(5, 1fr);
+                 gap: 10px;
+             }
+             
+             .finger-slot {
+                 height: 100px;
+             }
+         }
+         
+         @media (max-width: 768px) {
+             .container {
+                 padding: 15px;
+             }
+             
+             .header {
+                 padding: 20px;
+                 margin-bottom: 20px;
+             }
+             
+             .header h1 {
+                 font-size: 2rem;
+             }
+             
+             .fingers-grid {
+                 grid-template-columns: repeat(5, 1fr);
+                 gap: 8px;
+             }
+             
+             .finger-slot {
+                 height: 80px;
+             }
+             
+             .finger-icon {
+                 font-size: 1.8rem;
+             }
+             
+             .finger-label {
+                 font-size: 0.7rem;
+             }
+             
+             .hands-container {
+                 grid-template-columns: 1fr;
+                 gap: 15px;
+             }
+         }
+        
+        .status-details {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.scanning {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+        }
+        
+        .progress-fill.complete {
+            background: linear-gradient(90deg, #27ae60, #229954);
+        }
+        
+        .controls-panel {
+            text-align: center;
+        }
+        
+        .control-group {
+            margin: 20px 0;
+        }
+        
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.2rem;
+            color: #ecf0f1;
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px;
+            min-width: 140px;
+            justify-content: center;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .detection-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .history-item.match {
+            border-left-color: #27ae60;
+        }
+        
+        .history-item.no-match {
+            border-left-color: #e74c3c;
+        }
+        
+        .history-time {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        .history-result {
+            font-weight: 600;
+            margin: 5px 0;
+        }
+        
+        .history-details {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            margin: 5% auto;
+            padding: 40px;
+            border: none;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease;
+            color: white;
+        }
+        
+        .modal-content.match-found {
+            border: 3px solid #27ae60;
+        }
+        
+        .modal-content.no-match {
+            border: 3px solid #e74c3c;
+        }
+        
+        .close {
+            color: #bdc3c7;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close:hover {
+            color: white;
+        }
+        
+        .modal-icon {
+            font-size: 100px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-icon.success {
+            color: #27ae60;
+        }
+        
+        .modal-icon.error {
+            color: #e74c3c;
+        }
+        
+        .modal-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .modal-details {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .navigation-panel {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        @keyframes scannerPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes scanLine {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(500%); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scanner-panel {
+                grid-column: span 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .fingerprint-scanner {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .fingerprint-icon {
+                font-size: 150px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-hand-paper"></i> Live 10-Finger Biometric Scanner</h1>
+            <p>Advanced multi-finger biometric identification system for comprehensive suspect matching</p>
+        </div>
+        
+        <div class="main-content">
+              <div class="scanner-section">
+                  <h2 class="scanner-title"><i class="fas fa-scan"></i> Fingerprint Scanning Interface</h2>
+                  
+                  <div class="hands-container">
+                      <div class="hand-section">
+                          <h3 class="hand-title">LEFT HAND</h3>
+                          <div class="fingers-grid" id="leftHand">
+                              <div class="finger-slot" data-finger="left-thumb" data-hand="left" data-index="0">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Thumb</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="left-index" data-hand="left" data-index="1">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Index</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="left-middle" data-hand="left" data-index="2">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Middle</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="left-ring" data-hand="left" data-index="3">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Ring</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="left-pinky" data-hand="left" data-index="4">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Pinky</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div class="hand-section">
+                          <h3 class="hand-title">RIGHT HAND</h3>
+                          <div class="fingers-grid" id="rightHand">
+                              <div class="finger-slot" data-finger="right-thumb" data-hand="right" data-index="5">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Thumb</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="right-index" data-hand="right" data-index="6">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Index</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="right-middle" data-hand="right" data-index="7">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Middle</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="right-ring" data-hand="right" data-index="8">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Ring</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                              <div class="finger-slot" data-finger="right-pinky" data-hand="right" data-index="9">
+                                  <i class="fas fa-fingerprint finger-icon"></i>
+                                  <div class="finger-label">Pinky</div>
+                                  <div class="scan-progress"></div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div class="overall-progress">
+                      <div class="progress-text" id="progressText">0 / 10 Fingers Scanned</div>
+                      <div class="progress-bar">
+                          <div class="progress-fill" id="overallProgress"></div>
+                      </div>
+                  </div>
+                  
+                  <div class="results-section" id="resultsSection">
+                      <h3><i class="fas fa-search"></i> Scan Results</h3>
+                      <div id="scanResults"></div>
+                  </div>
+              </div>
+              
+              <div class="control-panel">
+                  <h3><i class="fas fa-cogs"></i> Scanner Control</h3>
+                  
+                  <div class="status-display">
+                      <div class="status-item">
+                          <span class="status-label">Scanner Status:</span>
+                          <span class="status-value" id="scannerStatus">Ready</span>
+                      </div>
+                      <div class="status-item">
+                          <span class="status-label">Current Finger:</span>
+                          <span class="status-value" id="currentFinger">None</span>
+                      </div>
+                      <div class="status-item">
+                          <span class="status-label">Scanned:</span>
+                          <span class="status-value" id="scannedCount">0 / 10</span>
+                      </div>
+                      <div class="status-item">
+                          <span class="status-label">Matches Found:</span>
+                          <span class="status-value" id="matchesFound">0</span>
+                      </div>
+                      <div class="status-item">
+                          <span class="status-label">Scan Time:</span>
+                          <span class="status-value" id="scanTime">--:--</span>
+                      </div>
+                  </div>
+                  
+                  <div class="controls">
+                      <button id="startScanBtn" class="btn">
+                          <i class="fas fa-play"></i> Start Full Scan
+                      </button>
+                      <button id="scanAllBtn" class="btn" disabled>
+                          <i class="fas fa-hand-paper"></i> Scan All Fingers
+                      </button>
+                      <button id="resetBtn" class="btn btn-secondary">
+                          <i class="fas fa-redo"></i> Reset Scanner
+                      </button>
+                      <button id="stopBtn" class="btn btn-danger" disabled>
+                          <i class="fas fa-stop"></i> Stop Scanning
+                      </button>
+                      <a href="/match_fingerprint" class="btn btn-secondary">
+                          <i class="fas fa-arrow-left"></i> Back to Options
+                      </a>
+                      <a href="/home" class="btn btn-primary">
+                          <i class="fas fa-home"></i> Dashboard
+                      </a>
+                  </div>
+              </div>
+          </div>
+    </div>
+    
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content" id="modalContent">
+            <span class="close" id="closeModal">&times;</span>
+            <div class="modal-icon" id="modalIcon">🔍</div>
+            <div class="modal-title" id="modalTitle">Fingerprint Analysis</div>
+            <div class="modal-details" id="modalDetails">Processing biometric data...</div>
+            <button class="btn btn-primary" onclick="closeResultModal()">Continue Scanning</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // UI Elements
+            const fingerSlots = document.querySelectorAll('.finger-slot');
+            const startScanBtn = document.getElementById('startScanBtn');
+            const scanAllBtn = document.getElementById('scanAllBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const progressText = document.getElementById('progressText');
+            const overallProgress = document.getElementById('overallProgress');
+            const resultsSection = document.getElementById('resultsSection');
+            const scanResults = document.getElementById('scanResults');
+            
+            // Status Elements
+            const scannerStatus = document.getElementById('scannerStatus');
+            const currentFinger = document.getElementById('currentFinger');
+            const scannedCount = document.getElementById('scannedCount');
+            const matchesFound = document.getElementById('matchesFound');
+            const scanTime = document.getElementById('scanTime');
+            
+            // State Variables
+            let isScanning = false;
+            let currentScanIndex = 0;
+            let scannedFingers = 0;
+            let totalMatches = 0;
+            let scanStartTime = null;
+            let scanInterval = null;
+            let fingersData = [];
+            
+            // Mock criminal database
+            const mockDatabase = [
+                { name: 'John Doe', confidence: 92 },
+                { name: 'Jane Smith', confidence: 88 },
+                { name: 'Robert Johnson', confidence: 95 },
+                { name: 'Maria Garcia', confidence: 85 },
+                { name: 'David Wilson', confidence: 90 },
+                { name: 'Sarah Wilson', confidence: 87 },
+                { name: 'Mike Johnson', confidence: 93 },
+                { name: 'Lisa Brown', confidence: 89 }
+            ];
+            
+            // Finger names for display
+            const fingerNames = [
+                'Left Thumb', 'Left Index', 'Left Middle', 'Left Ring', 'Left Pinky',
+                'Right Thumb', 'Right Index', 'Right Middle', 'Right Ring', 'Right Pinky'
+            ];
+            
+            // Initialize finger data
+            function initializeFingers() {
+                fingersData = fingerNames.map((name, index) => ({
+                    name: name,
+                    scanned: false,
+                    match: false,
+                    suspect: null,
+                    confidence: 0
+                }));
+            }
+            
+            // Update status display
+            function updateStatus() {
+                scannedCount.textContent = `${scannedFingers} / 10`;
+                matchesFound.textContent = totalMatches;
+                progressText.textContent = `${scannedFingers} / 10 Fingers Scanned`;
+                overallProgress.style.width = `${(scannedFingers / 10) * 100}%`;
+                
+                if (scanStartTime) {
+                    const elapsed = Math.floor((Date.now() - scanStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    scanTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+            
+            // Scan individual finger
+            function scanFinger(index) {
+                const slot = fingerSlots[index];
+                const fingerData = fingersData[index];
+                
+                if (fingerData.scanned) return;
+                
+                // Update current finger display
+                currentFinger.textContent = fingerData.name;
+                scannerStatus.textContent = 'Scanning';
+                
+                // Add scanning animation
+                slot.classList.add('scanning');
+                
+                // Simulate scan process
+                setTimeout(() => {
+                    // Random chance of match (25%)
+                    const hasMatch = Math.random() < 0.25;
+                    
+                    if (hasMatch) {
+                        const suspect = mockDatabase[Math.floor(Math.random() * mockDatabase.length)];
+                        const confidence = suspect.confidence + Math.floor(Math.random() * 10) - 5;
+                        
+                        fingerData.match = true;
+                        fingerData.suspect = suspect.name;
+                        fingerData.confidence = confidence;
+                        
+                        slot.classList.remove('scanning');
+                        slot.classList.add('match');
+                        
+                        totalMatches++;
+                    } else {
+                        slot.classList.remove('scanning');
+                        slot.classList.add('scanned');
+                    }
+                    
+                    fingerData.scanned = true;
+                    scannedFingers++;
+                    
+                    updateStatus();
+                    updateResults();
+                    
+                    // Continue to next finger if auto-scanning
+                    if (isScanning && scannedFingers < 10) {
+                        currentScanIndex++;
+                        setTimeout(() => scanFinger(currentScanIndex), 1000);
+                    } else if (scannedFingers >= 10) {
+                        completeScan();
+                    }
+                    
+                }, 2000); // 2 second scan time per finger
+            }
+            
+            // Update results display
+            function updateResults() {
+                if (scannedFingers === 0) {
+                    resultsSection.classList.remove('show');
+                    return;
+                }
+                
+                resultsSection.classList.add('show');
+                
+                let resultsHTML = '';
+                
+                fingersData.forEach((finger, index) => {
+                    if (finger.scanned) {
+                        if (finger.match) {
+                            resultsHTML += `
+                                <div class="match-result">
+                                    <h4><i class="fas fa-check-circle"></i> ${finger.name} - MATCH FOUND</h4>
+                                    <p><strong>Suspect:</strong> ${finger.suspect}</p>
+                                    <p><strong>Confidence:</strong> ${finger.confidence}%</p>
+                                    <p><strong>Status:</strong> Positive identification</p>
+                                </div>
+                            `;
+                        } else {
+                            resultsHTML += `
+                                <div class="no-match-result">
+                                    <h4><i class="fas fa-times-circle"></i> ${finger.name} - No Match</h4>
+                                    <p><strong>Status:</strong> Not in database</p>
+                                    <p><strong>Quality:</strong> Scan completed successfully</p>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+                
+                scanResults.innerHTML = resultsHTML;
+            }
+            
+            // Complete full scan
+            function completeScan() {
+                isScanning = false;
+                scannerStatus.textContent = 'Complete';
+                currentFinger.textContent = 'All Fingers';
+                
+                // Update button states
+                startScanBtn.disabled = false;
+                scanAllBtn.disabled = false;
+                stopBtn.disabled = true;
+                
+                // Show completion message
+                if (totalMatches > 0) {
+                    alert(`Scan Complete!\n\nTotal Matches Found: ${totalMatches}\nSuspects identified in the database.\n\nPlease review the detailed results below.`);
+                } else {
+                    alert(`Scan Complete!\n\nNo matches found in the criminal database.\nAll 10 fingerprints have been processed.`);
+                }
+            }
+            
+            // Start full scan
+            function startFullScan() {
+                if (isScanning) return;
+                
+                isScanning = true;
+                currentScanIndex = 0;
+                scanStartTime = Date.now();
+                
+                scannerStatus.textContent = 'Active';
+                
+                // Update button states
+                startScanBtn.disabled = true;
+                scanAllBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // Start scanning first finger
+                scanFinger(currentScanIndex);
+                
+                // Start status update timer
+                scanInterval = setInterval(updateStatus, 1000);
+            }
+            
+            // Scan all remaining fingers
+            function scanAllFingers() {
+                if (isScanning) return;
+                
+                // Find first unscanned finger
+                let startIndex = fingersData.findIndex(finger => !finger.scanned);
+                if (startIndex === -1) return; // All fingers already scanned
+                
+                isScanning = true;
+                currentScanIndex = startIndex;
+                if (!scanStartTime) scanStartTime = Date.now();
+                
+                scannerStatus.textContent = 'Active';
+                
+                // Update button states
+                startScanBtn.disabled = true;
+                scanAllBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // Start scanning from first unscanned finger
+                scanFinger(currentScanIndex);
+                
+                if (!scanInterval) {
+                    scanInterval = setInterval(updateStatus, 1000);
+                }
+            }
+            
+            // Stop scanning
+            function stopScanning() {
+                isScanning = false;
+                scannerStatus.textContent = 'Stopped';
+                currentFinger.textContent = 'None';
+                
+                // Remove scanning animations
+                fingerSlots.forEach(slot => {
+                    slot.classList.remove('scanning');
+                });
+                
+                // Update button states
+                startScanBtn.disabled = false;
+                scanAllBtn.disabled = false;
+                stopBtn.disabled = true;
+                
+                if (scanInterval) {
+                    clearInterval(scanInterval);
+                    scanInterval = null;
+                }
+            }
+            
+            // Reset scanner
+            function resetScanner() {
+                stopScanning();
+                
+                // Reset all finger states
+                fingerSlots.forEach(slot => {
+                    slot.classList.remove('scanning', 'scanned', 'match');
+                });
+                
+                // Reset data
+                initializeFingers();
+                scannedFingers = 0;
+                totalMatches = 0;
+                currentScanIndex = 0;
+                scanStartTime = null;
+                
+                // Reset UI
+                scannerStatus.textContent = 'Ready';
+                currentFinger.textContent = 'None';
+                scanTime.textContent = '--:--';
+                resultsSection.classList.remove('show');
+                
+                updateStatus();
+            }
+            
+            // Event listeners
+            startScanBtn.addEventListener('click', startFullScan);
+            scanAllBtn.addEventListener('click', scanAllFingers);
+            resetBtn.addEventListener('click', resetScanner);
+            stopBtn.addEventListener('click', stopScanning);
+            
+            // Individual finger click events
+            fingerSlots.forEach((slot, index) => {
+                slot.addEventListener('click', () => {
+                    if (!isScanning && !fingersData[index].scanned) {
+                        scanFinger(index);
+                    }
+                });
+            });
+            
+            // Initialize
+            initializeFingers();
+            updateStatus();
+        });
+    </script>
+</body>
+</html>
