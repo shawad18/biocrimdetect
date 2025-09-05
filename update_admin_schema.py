@@ -23,6 +23,7 @@ def update_admin_table():
             else:
                 print(f'Error adding column {column_name}: {e}')
     
+<<<<<<< HEAD
     # Update existing admin user with sample data
     cursor.execute('''
         UPDATE admin 
@@ -41,6 +42,16 @@ def update_admin_table():
             email = 'superadmin@cybersec.local',
             id_number = 'BCD000'
         WHERE username = 'superadmin' AND (first_name IS NULL OR first_name = '')
+=======
+    # Update existing user with sample data
+    cursor.execute('''
+        UPDATE admin 
+        SET first_name = 'Shamsu', 
+            last_name = 'Wada', 
+            email = 'shawad@biometric.com',
+            id_number = 'BCD001'
+        WHERE username = 'shawad'
+>>>>>>> 667fdcf7b29f05e42dd8ed396f59016ef594fcad
     ''')
     
     conn.commit()
