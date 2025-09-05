@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Management - Biometric Crime Detection</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(16, 24, 38, 0.85);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 60px rgba(76, 201, 240, 0.1);
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(76, 201, 240, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .admin-title {
+            color: #4cc9f0;
+            margin: 0;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .admin-table th {
+            background-color: #1a2634;
+            color: #4cc9f0;
+            text-align: left;
+            padding: 12px;
+        }
+        
+        .admin-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(76, 201, 240, 0.1);
+        }
+        
+        .admin-table tr:hover {
+            background-color: rgba(76, 201, 240, 0.05);
+        }
+        
+        .role-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .role-admin {
+            background-color: rgba(76, 201, 240, 0.2);
+            color: #4cc9f0;
+        }
+        
+        .role-superadmin {
+            background-color: rgba(240, 76, 76, 0.2);
+            color: #f04c4c;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: #4cc9f0;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:hover {
+            color: #f04c4c;
+        }
+        
+        .add-admin-form {
+            background-color: rgba(16, 24, 38, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .form-title {
+            color: #4cc9f0;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #e0e0e0;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(76, 201, 240, 0.1);
+            border-radius: 5px;
+            color: #e0e0e0;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: rgba(76, 201, 240, 0.5);
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .submit-btn:hover {
+            background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+        }
+        
+        .flash-message {
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .flash-message i {
+            margin-right: 10px;
+        }
+        
+        .flash-success {
+            background-color: rgba(40, 167, 69, 0.2);
+            border-left: 3px solid #28a745;
+            color: #28a745;
+        }
+        
+        .flash-error {
+            background-color: rgba(220, 53, 69, 0.2);
+            border-left: 3px solid #dc3545;
+            color: #dc3545;
+        }
+        
+        .flash-warning {
+            background-color: rgba(255, 193, 7, 0.2);
+            border-left: 3px solid #ffc107;
+            color: #ffc107;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4cc9f0;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1 class="admin-title"><i class="fas fa-user-shield"></i> Admin Management</h1>
+            <div class="admin-actions">
+                <a href="/home" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+            </div>
+        </div>
+        
+        <div id="flash-messages"></div>
+        
+        <h2>Admin Users</h2>
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID Number</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="admin-table-body">
+                <tr>
+                    <td>BCD001</td>
+                    <td>Shamsu Wada</td>
+                    <td>shawad</td>
+                    <td>shawad@biometric.com</td>
+                    <td>
+                        <span class="role-badge role-superadmin">superadmin</span>
+                    </td>
+                    <td>
+                        <a href="/admin/edit/1" class="action-btn"><i class="fas fa-edit"></i></a>
+                        <span class="action-btn" style="color: #aaa;"><i class="fas fa-user-check"></i> Current User</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="add-admin-form">
+            <h3 class="form-title"><i class="fas fa-user-plus"></i> Add New Admin</h3>
+            <form method="POST" action="/admin/add">
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="first_name">First Name</label>
+                        <input type="text" id="first_name" name="first_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role">
+                        <option value="admin">Admin</option>
+                        <option value="superadmin">Superadmin</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Add Admin</button>
+                <p style="color: #aaa; font-size: 12px; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> ID Number will be auto-generated (e.g., BCD002)
+                </p>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

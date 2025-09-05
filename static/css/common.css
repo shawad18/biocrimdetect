@@ -1,0 +1,42 @@
+/* Common styles for all pages except login */
+body:not(.login-page) {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: rgb(40, 58, 117);
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+}
+
+/* Common card-like container styles */
+.container:not(.login-container),
+.card:not(.login-card),
+.section:not(.login-section),
+.panel:not(.login-panel) {
+    background: rgb(40, 58, 117);
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+/* Common header styles */
+.header:not(.login-header) {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 25px;
+    background: rgb(40, 58, 117);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Common text styles */
+h1:not(.login-title),
+h2:not(.login-subtitle),
+h3:not(.login-heading),
+.title:not(.login-title) {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #ffffff;
+    margin-bottom: 20px;
+}

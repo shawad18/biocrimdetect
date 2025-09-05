@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00cc66;stop-opacity:1" />
+    </linearGradient>
+    
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="200" fill="#1a2332" rx="10" ry="10"/>
+  
+  <!-- Face Recognition Icon -->
+  <g transform="translate(60, 30)">
+    <!-- Scanning Frame Corners -->
+    <g stroke="#00ff88" stroke-width="4" fill="none" stroke-linecap="round">
+      <path d="M0 0 L20 0 M0 0 L0 20"/>
+      <path d="M80 0 L100 0 M100 0 L100 20"/>
+      <path d="M0 80 L0 100 M0 100 L20 100"/>
+      <path d="M100 100 L80 100 M100 100 L100 80"/>
+    </g>
+    
+    <!-- Face Outline -->
+    <g transform="translate(25, 15)" stroke="#00ff88" stroke-width="4" fill="none">
+      <ellipse cx="25" cy="35" rx="20" ry="25"/>
+      
+      <!-- Eyes -->
+      <ellipse cx="18" cy="28" rx="3" ry="2"/>
+      <ellipse cx="32" cy="28" rx="3" ry="2"/>
+      
+      <!-- Nose -->
+      <path d="M25 32 L25 38 M23 40 L27 40"/>
+      
+      <!-- Mouth -->
+      <path d="M20 45 Q25 48 30 45"/>
+    </g>
+  </g>
+  
+  <!-- Separator Dots -->
+  <g fill="#00ff88">
+    <circle cx="200" cy="50" r="3"/>
+    <circle cx="200" cy="65" r="3"/>
+    <circle cx="200" cy="80" r="3"/>
+    <circle cx="200" cy="95" r="3"/>
+    <circle cx="200" cy="110" r="3"/>
+  </g>
+  
+  <!-- Fingerprint Icon -->
+  <g transform="translate(240, 30)">
+    <!-- Fingerprint Ridges -->
+    <g stroke="#00ff88" stroke-width="4" fill="none">
+      <!-- Outer ridges -->
+      <path d="M10 20 Q30 10 50 20 Q70 30 80 50 Q70 70 50 80 Q30 90 10 80 Q0 60 0 50 Q0 40 10 20"/>
+      <path d="M15 25 Q30 18 45 25 Q60 32 65 50 Q60 68 45 75 Q30 82 15 75 Q8 62 8 50 Q8 38 15 25"/>
+      <path d="M20 30 Q30 25 40 30 Q50 35 55 50 Q50 65 40 70 Q30 75 20 70 Q15 60 15 50 Q15 40 20 30"/>
+      <path d="M25 35 Q30 32 35 35 Q40 38 42 50 Q40 62 35 65 Q30 68 25 65 Q22 58 22 50 Q22 42 25 35"/>
+      
+      <!-- Ridge details -->
+      <path d="M30 40 Q35 42 40 40"/>
+      <path d="M28 50 Q35 52 42 50"/>
+      <path d="M30 60 Q35 58 40 60"/>
+    </g>
+    
+    <!-- Center point -->
+    <circle cx="35" cy="50" r="2" fill="#00ff88"/>
+  </g>
+  
+  <!-- Main Title -->
+  <g font-family="Arial, sans-serif" font-weight="bold" fill="#00ff88" filter="url(#glow)">
+    <text x="200" y="150" text-anchor="middle" font-size="32" letter-spacing="2px">BIOMETRIC</text>
+    <text x="200" y="175" text-anchor="middle" font-size="24" letter-spacing="1px">CRIME DETECTION</text>
+    <text x="200" y="195" text-anchor="middle" font-size="20" letter-spacing="1px">SYSTEM</text>
+  </g>
+</svg>

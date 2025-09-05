@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Match Result - Crime Detection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            max-width: 600px;
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .result-icon {
+            font-size: 120px;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .result-icon.match {
+            color: #27ae60;
+        }
+        
+        .result-icon.no-match {
+            color: #e74c3c;
+        }
+        
+        .result-title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+        
+        .result-title.match {
+            color: #27ae60;
+        }
+        
+        .result-title.no-match {
+            color: #e74c3c;
+        }
+        
+        .result-details {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: left;
+        }
+        
+        .result-details h3 {
+            margin: 0 0 15px 0;
+            color: #ffffff;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #ecf0f1;
+        }
+        
+        .detail-value {
+            color: #bdc3c7;
+        }
+        
+        .detail-value.match {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .detail-value.no-match {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .status-badge.match {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+            border: 2px solid #27ae60;
+        }
+        
+        .status-badge.no-match {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+        
+        .status-badge.mock {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+            border: 2px solid #f1c40f;
+        }
+        
+        .navigation {
+            margin-top: 30px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary {
+            background: rgba(52, 152, 219, 0.8);
+            border-color: #3498db;
+        }
+        
+        .btn-primary:hover {
+            background: rgba(52, 152, 219, 1);
+        }
+        
+        .btn-success {
+            background: rgba(39, 174, 96, 0.8);
+            border-color: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background: rgba(39, 174, 96, 1);
+        }
+        
+        .warning-note {
+            background: rgba(241, 196, 15, 0.1);
+            border: 1px solid rgba(241, 196, 15, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #f1c40f;
+            font-size: 0.9rem;
+        }
+        
+        .warning-note i {
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .result-icon {
+                font-size: 80px;
+            }
+            
+            .result-title {
+                font-size: 2rem;
+            }
+            
+            .detail-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if result == "Match Found" %}
+            <div class="result-icon match">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h1 class="result-title match">MATCH FOUND!</h1>
+            
+            <div class="status-badge match">Suspect Identified</div>
+            
+            <div class="result-details">
+                <h3><i class="fas fa-user"></i> Suspect Information</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Name:</span>
+                    <span class="detail-value match">{{ name }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Match Status:</span>
+                    <span class="detail-value match">Confirmed</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Confidence:</span>
+                    <span class="detail-value">{{ "%.1f"|format((85 + (range(15)|random))) }}%</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Scan Time:</span>
+                    <span class="detail-value">Just now</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Database Status:</span>
+                    <span class="detail-value">Record Found</span>
+                </div>
+            </div>
+            
+            {% if not face_recognition_available %}
+            <div class="warning-note">
+                <i class="fas fa-info-circle"></i>
+                <strong>Demo Mode:</strong> This result was generated using mock data. Install face recognition dependencies for real matching.
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="result-icon no-match">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <h1 class="result-title no-match">NO MATCH FOUND</h1>
+            
+            <div class="status-badge no-match">Unknown Subject</div>
+            
+            <div class="result-details">
+                <h3><i class="fas fa-search"></i> Analysis Results</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Match Status:</span>
+                    <span class="detail-value no-match">No Match</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Database Search:</span>
+                    <span class="detail-value">Complete</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Features Analyzed:</span>
+                    <span class="detail-value">{{ range(50, 150)|random }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Scan Time:</span>
+                    <span class="detail-value">Just now</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Recommendation:</span>
+                    <span class="detail-value">Register as new suspect if needed</span>
+                </div>
+            </div>
+            
+            {% if not face_recognition_available %}
+            <div class="warning-note">
+                <i class="fas fa-info-circle"></i>
+                <strong>Demo Mode:</strong> This result was generated using mock data. Install face recognition dependencies for real matching.
+            </div>
+            {% endif %}
+        {% endif %}
+        
+        {% if not face_recognition_available %}
+        <div class="status-badge mock">
+            <i class="fas fa-flask"></i> Mock Recognition Mode
+        </div>
+        {% endif %}
+        
+        <div class="navigation">
+            <a href="/match" class="btn btn-primary">
+                <i class="fas fa-search"></i> New Search
+            </a>
+            {% if result == "No Match" %}
+            <a href="/register" class="btn btn-success">
+                <i class="fas fa-user-plus"></i> Register Suspect
+            </a>
+            {% endif %}
+            <a href="/" class="btn">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>

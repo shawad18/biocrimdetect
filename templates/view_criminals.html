@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criminal Database - Biometric Crime Detection</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow-x: auto;
+            overflow-y: auto;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .criminals-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(16, 24, 38, 0.85);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 60px rgba(76, 201, 240, 0.1);
+            min-height: calc(100vh - 40px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(76, 201, 240, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            color: #4cc9f0;
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(76, 201, 240, 0.1);
+            border-radius: 25px;
+            padding: 8px 15px;
+        }
+        
+        .search-box input {
+            background: none;
+            border: none;
+            color: #e0e0e0;
+            padding: 5px 10px;
+            outline: none;
+            width: 250px;
+        }
+        
+        .search-box i {
+            color: #4cc9f0;
+        }
+        
+        .add-btn {
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .add-btn:hover {
+            background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+            transform: translateY(-2px);
+        }
+        
+        .criminals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .criminal-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(76, 201, 240, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .criminal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(76, 201, 240, 0.2);
+            border-color: rgba(76, 201, 240, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .photo-section {
+            flex-shrink: 0;
+        }
+        
+        .photo-placeholder {
+            width: 120px;
+            height: 150px;
+            background: linear-gradient(145deg, #2a3441, #1e2832);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4cc9f0;
+            font-size: 48px;
+            border: 2px solid rgba(76, 201, 240, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .photo-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .info-section {
+            flex: 1;
+        }
+        
+        .full-name {
+            color: #e0e0e0;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+        }
+        
+        .age {
+            color: #aaa;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .crime-type {
+            color: #4cc9f0;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .case-id {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            display: inline-block;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+        
+        .fingerprint-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(76, 201, 240, 0.1);
+            text-align: center;
+        }
+        
+        .fingerprint-label {
+            color: #aaa;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .fingerprint-placeholder {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(145deg, #2a3441, #1e2832);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            color: #4cc9f0;
+            font-size: 24px;
+            border: 2px solid rgba(76, 201, 240, 0.2);
+        }
+        
+        .fingerprint-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .no-criminals {
+            text-align: center;
+            color: #aaa;
+            font-size: 18px;
+            padding: 50px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4cc9f0;
+            text-decoration: none;
+            padding: 10px 20px;
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: rgba(76, 201, 240, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .card-actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            background: rgba(76, 201, 240, 0.1);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            color: #4cc9f0;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-btn:hover {
+            background: rgba(76, 201, 240, 0.2);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="criminals-container">
+        <div class="header">
+            <h1><i class="fas fa-database"></i> Criminal Database</h1>
+        </div>
+        
+        <div class="controls">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search by name, case ID, or crime type...">
+            </div>
+            <a href="/register" class="add-btn">
+                <i class="fas fa-plus"></i>
+                Add New Suspect
+            </a>
+        </div>
+        
+        <div class="criminals-grid" id="criminalsGrid">
+            <!-- Criminal cards will be populated here -->
+        </div>
+        
+        <div class="no-criminals" id="noCriminals" style="display: none;">
+            <i class="fas fa-search"></i>
+            <p>No criminals found matching your search criteria.</p>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/home" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Criminal data from server
+        const criminals = [];
+        
+        // Populate criminals array with server data
+        function loadCriminals() {
+            // This will be populated by the template
+            const criminalsData = [
+                // Data will be inserted here by Flask template
+            ];
+            
+            criminals.push(...criminalsData);
+            renderCriminals(criminals);
+        }
+        
+        function renderCriminals(data) {
+            const grid = document.getElementById('criminalsGrid');
+            const noCriminals = document.getElementById('noCriminals');
+            
+            if (data.length === 0) {
+                grid.innerHTML = '';
+                noCriminals.style.display = 'block';
+                return;
+            }
+            
+            noCriminals.style.display = 'none';
+            
+            grid.innerHTML = data.map(criminal => `
+                <div class="criminal-card">
+                    <div class="card-actions">
+                        <button class="action-btn" onclick="editCriminal(${criminal.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn" onclick="deleteCriminal(${criminal.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="card-header">
+                        <div class="photo-section">
+                            <div class="photo-placeholder">
+                                ${criminal.face_image ? 
+                                    `<img src="/uploads/face_images/${criminal.face_image}" alt="${criminal.name}">` : 
+                                    '<i class="fas fa-user"></i>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <div class="full-name">${criminal.name}</div>
+                            <div class="age">AGE: ${criminal.age || 'Unknown'}</div>
+                            <div class="crime-type">TYPE OF CRIME<br>${criminal.crime}</div>
+                            <div class="case-id">${criminal.case_id || 'No Case ID'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="fingerprint-section">
+                        <div class="fingerprint-label">Fingerprint Thumb</div>
+                        <div class="fingerprint-placeholder">
+                            ${criminal.fingerprint_image ? 
+                                `<img src="/uploads/fingerprint_images/${criminal.fingerprint_image}" alt="Fingerprint">` : 
+                                '<i class="fas fa-fingerprint"></i>'
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function searchCriminals() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = criminals.filter(criminal => 
+                criminal.name.toLowerCase().includes(searchTerm) ||
+                criminal.crime.toLowerCase().includes(searchTerm) ||
+                (criminal.case_id && criminal.case_id.toLowerCase().includes(searchTerm))
+            );
+            renderCriminals(filtered);
+        }
+        
+        function editCriminal(id) {
+            // Implement edit functionality
+            alert(`Edit criminal with ID: ${id}`);
+        }
+        
+        function deleteCriminal(id) {
+            if (confirm('Are you sure you want to delete this criminal record?')) {
+                // Implement delete functionality
+                alert(`Delete criminal with ID: ${id}`);
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', searchCriminals);
+        
+        // Load criminals on page load
+         document.addEventListener('DOMContentLoaded', function() {
+             // Populate with actual data from Flask
+             const serverData = [
+                 {% for criminal in criminals %}
+                 {
+                     id: {{ criminal[0] }},
+                     name: "{{ criminal[1] or 'Unknown' }}",
+                     crime: "{{ criminal[2] or 'Unknown Crime' }}",
+                     face_image: "{{ criminal[3] or '' }}",
+                     fingerprint_image: "{{ criminal[4] or '' }}",
+                     age: {{ criminal[5] or 'null' }},
+                     case_id: "{{ criminal[6] or '' }}",
+                     first_name: "{{ criminal[7] or '' }}",
+                     last_name: "{{ criminal[8] or '' }}"
+                 }{% if not loop.last %},{% endif %}
+                 {% endfor %}
+             ];
+             
+             criminals.push(...serverData);
+             renderCriminals(criminals);
+         });
+    </script>
+</body>
+</html>
