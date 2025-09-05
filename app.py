@@ -374,57 +374,57 @@ def register_criminal():
                 flash("Face and fingerprint images are required", "error")
                 return render_template('register.html')
 
-        face_path = os.path.join(app.config['UPLOAD_FOLDER'], face_image.filename)
-        fp_path = os.path.join(app.config['FP_UPLOAD_FOLDER'], fingerprint_image.filename)
+            face_path = os.path.join(app.config['UPLOAD_FOLDER'], face_image.filename)
+            fp_path = os.path.join(app.config['FP_UPLOAD_FOLDER'], fingerprint_image.filename)
 
-        face_image.save(face_path)
-        fingerprint_image.save(fp_path)
-        
-        # Handle optional suspect photo
-        suspect_photo_filename = None
-        if suspect_photo and suspect_photo.filename:
-            suspect_photo_filename = suspect_photo.filename
-            suspect_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], suspect_photo.filename)
-            suspect_photo.save(suspect_photo_path)
+            face_image.save(face_path)
+            fingerprint_image.save(fp_path)
+            
+            # Handle optional suspect photo
+            suspect_photo_filename = None
+            if suspect_photo and suspect_photo.filename:
+                suspect_photo_filename = suspect_photo.filename
+                suspect_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], suspect_photo.filename)
+                suspect_photo.save(suspect_photo_path)
 
-        # Save record to DB
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        # Check if the new columns exist, if not add them
-        try:
-            cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, crime, face_image, fingerprint_image, suspect_photo)
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                              (full_name, first_name, last_name, date_of_birth, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
-        except sqlite3.OperationalError:
-            # If columns don't exist, add them
+            # Save record to DB
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Check if the new columns exist, if not add them
             try:
-                cursor.execute('ALTER TABLE criminals ADD COLUMN first_name TEXT')
-                cursor.execute('ALTER TABLE criminals ADD COLUMN last_name TEXT')
-                cursor.execute('ALTER TABLE criminals ADD COLUMN date_of_birth DATE')
-                cursor.execute('ALTER TABLE criminals ADD COLUMN suspect_photo TEXT')
-                conn.commit()
-                # Try the insert again
                 cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, crime, face_image, fingerprint_image, suspect_photo)
                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
                                   (full_name, first_name, last_name, date_of_birth, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
             except sqlite3.OperationalError:
-                # Fallback to old schema
-                cursor.execute('''INSERT INTO criminals (name, crime, face_image, fingerprint_image)
-                                  VALUES (?, ?, ?, ?)''', (full_name, crime, face_image.filename, fingerprint_image.filename))
-        
-        conn.commit()
-        conn.close()
+                # If columns don't exist, add them
+                try:
+                    cursor.execute('ALTER TABLE criminals ADD COLUMN first_name TEXT')
+                    cursor.execute('ALTER TABLE criminals ADD COLUMN last_name TEXT')
+                    cursor.execute('ALTER TABLE criminals ADD COLUMN date_of_birth DATE')
+                    cursor.execute('ALTER TABLE criminals ADD COLUMN suspect_photo TEXT')
+                    conn.commit()
+                    # Try the insert again
+                    cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, crime, face_image, fingerprint_image, suspect_photo)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
+                                      (full_name, first_name, last_name, date_of_birth, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
+                except sqlite3.OperationalError:
+                    # Fallback to old schema
+                    cursor.execute('''INSERT INTO criminals (name, crime, face_image, fingerprint_image)
+                                      VALUES (?, ?, ?, ?)''', (full_name, crime, face_image.filename, fingerprint_image.filename))
+            
+            conn.commit()
+            conn.close()
 
-        # Re-train/encode faces if available
-        if FACE_RECOGNITION_AVAILABLE:
-            try:
-                train_model.encode_faces()
-                flash(f"Suspect '{full_name}' has been successfully registered with face encoding.", "success")
-            except Exception as e:
-                flash(f"Suspect '{full_name}' registered, but face encoding failed: {str(e)}", "warning")
-        else:
-            flash(f"Suspect '{full_name}' has been successfully registered. Face recognition is not available.", "warning")
+            # Re-train/encode faces if available
+            if FACE_RECOGNITION_AVAILABLE:
+                try:
+                    train_model.encode_faces()
+                    flash(f"Suspect '{full_name}' has been successfully registered with face encoding.", "success")
+                except Exception as e:
+                    flash(f"Suspect '{full_name}' registered, but face encoding failed: {str(e)}", "warning")
+            else:
+                flash(f"Suspect '{full_name}' has been successfully registered. Face recognition is not available.", "warning")
 
             return redirect(url_for('view_criminals'))
         
