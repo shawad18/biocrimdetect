@@ -61,6 +61,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads', 'face_images')
 app.config['FP_UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads', 'fingerprint_images')
 
+# Create upload directories if they don't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['FP_UPLOAD_FOLDER'], exist_ok=True)
+
 DB_PATH = os.path.join(BASE_DIR, 'database', 'criminals.db')
 
 def init_db_if_missing():
@@ -348,21 +352,27 @@ def register_criminal():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        date_of_birth = request.form['date_of_birth']
-        crime = request.form['crime']
-        
-        # Combine first and last name for backward compatibility
-        full_name = f"{first_name} {last_name}"
+        try:
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            date_of_birth = request.form.get('date_of_birth', '').strip()
+            crime = request.form.get('crime', '').strip()
+            
+            # Validate required fields
+            if not first_name or not last_name or not crime:
+                flash("First name, last name, and crime are required", "error")
+                return render_template('register.html')
+            
+            # Combine first and last name for backward compatibility
+            full_name = f"{first_name} {last_name}"
 
-        face_image = request.files.get('face_image')
-        fingerprint_image = request.files.get('fingerprint_image')
-        suspect_photo = request.files.get('suspect_photo')
+            face_image = request.files.get('face_image')
+            fingerprint_image = request.files.get('fingerprint_image')
+            suspect_photo = request.files.get('suspect_photo')
 
-        if not face_image or not fingerprint_image:
-            flash("Face and fingerprint images are required", "error")
-            return render_template('register.html')
+            if not face_image or not fingerprint_image or not face_image.filename or not fingerprint_image.filename:
+                flash("Face and fingerprint images are required", "error")
+                return render_template('register.html')
 
         face_path = os.path.join(app.config['UPLOAD_FOLDER'], face_image.filename)
         fp_path = os.path.join(app.config['FP_UPLOAD_FOLDER'], fingerprint_image.filename)
@@ -416,7 +426,11 @@ def register_criminal():
         else:
             flash(f"Suspect '{full_name}' has been successfully registered. Face recognition is not available.", "warning")
 
-        return redirect(url_for('view_criminals'))
+            return redirect(url_for('view_criminals'))
+        
+        except Exception as e:
+            flash(f"Error registering suspect: {str(e)}", "error")
+            return render_template('register.html')
 
     return render_template('register.html')
 

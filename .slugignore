@@ -1,0 +1,58 @@
+# Virtual environments
+venv/
+.venv/
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Development files
+.vs/
+.vscode/
+*.log
+*.tmp
+
+# Documentation
+docs/
+*.pdf
+*.docx
+*.pptx
+
+# Test files
+test/
+tests/
+spec/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Large model files (keep only essential ones)
+facial_recognition/encodings.pkl
+
+# Development tools
+.git/
+.gitignore
+README.md
+setup.ps1
+setup.sh
+
+# IDE files
+*.code-workspace
+
+# Deployment package (avoid nested deployment)
+deployment_package/
+
+# Large binary files
+*.exe
+*.dll
+*.so
+*.dylib
