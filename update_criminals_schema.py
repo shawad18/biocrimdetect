@@ -1,8 +1,9 @@
-import sqlite3
+import sqlite3, os
 import random
 
 def update_criminals_table():
-    conn = sqlite3.connect('database/criminals.db')
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database', 'criminals.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # Add new columns to criminals table
@@ -10,7 +11,9 @@ def update_criminals_table():
         ('age', 'INTEGER'),
         ('case_id', 'TEXT'),
         ('first_name', 'TEXT'),
-        ('last_name', 'TEXT')
+        ('last_name', 'TEXT'),
+        ('suspect_photo', 'TEXT'),
+        ('date_of_birth', 'DATE')
     ]
     
     for column_name, column_type in columns_to_add:

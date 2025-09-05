@@ -51,7 +51,6 @@ def update_admin_table():
             email = 'shawad@biometric.com',
             id_number = 'BCD001'
         WHERE username = 'shawad'
->>>>>>> 667fdcf7b29f05e42dd8ed396f59016ef594fcad
     ''')
     
     conn.commit()
