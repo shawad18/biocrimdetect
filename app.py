@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, send_from_directory
 import os, sqlite3, time
 import bcrypt
 import logging
@@ -86,6 +86,11 @@ def js_files(filename):
 @app.route('/img/<path:filename>')
 def img_files(filename):
     return app.send_static_file(f'img/{filename}')
+
+@app.route('/uploads/<path:filename>')
+def uploaded_files(filename):
+    """Serve uploaded files (face images, fingerprints, suspect photos)"""
+    return send_from_directory(os.path.join(BASE_DIR, 'uploads'), filename)
 
 # Role-based Access Control
 def login_required(f):
@@ -363,6 +368,18 @@ def register_criminal():
                 flash("First name, last name, and crime are required", "error")
                 return render_template('register.html')
             
+            # Calculate age from date of birth
+            age = None
+            if date_of_birth:
+                try:
+                    from datetime import datetime
+                    birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+                    today = datetime.today()
+                    age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                except ValueError:
+                    flash("Invalid date format. Please use YYYY-MM-DD format.", "error")
+                    return render_template('register.html')
+            
             # Combine first and last name for backward compatibility
             full_name = f"{first_name} {last_name}"
 
@@ -393,21 +410,22 @@ def register_criminal():
             
             # Check if the new columns exist, if not add them
             try:
-                cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, crime, face_image, fingerprint_image, suspect_photo)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                                  (full_name, first_name, last_name, date_of_birth, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
+                cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo)
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                                  (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
             except sqlite3.OperationalError:
                 # If columns don't exist, add them
                 try:
                     cursor.execute('ALTER TABLE criminals ADD COLUMN first_name TEXT')
                     cursor.execute('ALTER TABLE criminals ADD COLUMN last_name TEXT')
                     cursor.execute('ALTER TABLE criminals ADD COLUMN date_of_birth DATE')
+                    cursor.execute('ALTER TABLE criminals ADD COLUMN age INTEGER')
                     cursor.execute('ALTER TABLE criminals ADD COLUMN suspect_photo TEXT')
                     conn.commit()
                     # Try the insert again
-                    cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, crime, face_image, fingerprint_image, suspect_photo)
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                                      (full_name, first_name, last_name, date_of_birth, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
+                    cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                                      (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
                 except sqlite3.OperationalError:
                     # Fallback to old schema
                     cursor.execute('''INSERT INTO criminals (name, crime, face_image, fingerprint_image)
@@ -441,7 +459,7 @@ def view_criminals():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name
+        SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth
         FROM criminals
         ORDER BY id DESC
     """)
