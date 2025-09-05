@@ -42,6 +42,14 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.environ.get('SECRET_KEY', 'replace_this_with_a_random_secret')
 app.config['DEBUG'] = os.environ.get('DEBUG', 'False').lower() == 'true'
 
+# CSRF Configuration for Production
+if not app.config.get('DEBUG', False):
+    app.config['WTF_CSRF_SSL_STRICT'] = False
+    app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['WTF_CSRF_TIME_LIMIT'] = None
+
 csrf = CSRFProtect(app)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
