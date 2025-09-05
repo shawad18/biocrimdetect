@@ -37,7 +37,23 @@ except ImportError:
     print("Fingerprint matching not available")
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-app.secret_key = 'replace_this_with_a_random_secret'
+
+# Production-ready configuration
+app.secret_key = os.environ.get('SECRET_KEY', 'replace_this_with_a_random_secret')
+app.config['DEBUG'] = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+# CSRF Configuration - Disable for local development, enable for production
+if os.environ.get('FLASK_ENV') == 'production':
+    # Production CSRF configuration
+    app.config['WTF_CSRF_SSL_STRICT'] = False
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['WTF_CSRF_TIME_LIMIT'] = None
+else:
+    # Disable CSRF for local development
+    app.config['WTF_CSRF_ENABLED'] = False
+
 csrf = CSRFProtect(app)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1651,4 +1667,7 @@ def system_status():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Production-ready server configuration
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)
