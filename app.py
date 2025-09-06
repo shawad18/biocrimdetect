@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
+import cv2
 
 # Try to import face recognition modules, but continue if not available
 try:
@@ -12,7 +13,9 @@ try:
     from facial_recognition.simple_face_recognition import recognize_from_image, add_known_face
     from facial_recognition import train_model
     from facial_recognition.live_recognition import LiveFaceRecognition
+    from facial_recognition.simple_camera_detection import SimpleCameraDetection
     FACE_RECOGNITION_AVAILABLE = True
+    SIMPLE_CAMERA_AVAILABLE = True
     print("Simple face recognition modules loaded successfully")
 except ImportError as e:
     try:
@@ -21,9 +24,11 @@ except ImportError as e:
         import face_recognition
         from facial_recognition.live_recognition import LiveFaceRecognition
         FACE_RECOGNITION_AVAILABLE = True
+        SIMPLE_CAMERA_AVAILABLE = False
         print("Original face recognition modules loaded")
     except ImportError:
         FACE_RECOGNITION_AVAILABLE = False
+        SIMPLE_CAMERA_AVAILABLE = False
         print("Face recognition modules not available - using enhanced mock recognition")
         # Import enhanced mock recognition as fallback
         from facial_recognition.enhanced_mock_recognition import EnhancedMockFaceRecognition as MockFaceRecognition
@@ -641,6 +646,104 @@ def process_live_verification():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Global variable to store camera detection instance
+camera_detector = None
+
+@app.route('/live_camera_detection')
+def live_camera_detection():
+    """Route for real camera detection page"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+    
+    # Check if simple camera detection is available
+    if not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
+        return render_template('feature_unavailable.html', 
+                              message="Real camera detection is not available. OpenCV is required.")
+    
+    return render_template('live_camera_detection.html')
+
+@app.route('/start_camera_detection', methods=['POST'])
+def start_camera_detection():
+    """Start the camera detection"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    if not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
+        return jsonify({'error': 'Camera detection not available'}), 400
+    
+    global camera_detector
+    
+    try:
+        if camera_detector is None or not camera_detector.is_running():
+            camera_detector = SimpleCameraDetection()
+            camera_detector.start()
+            return jsonify({'status': 'started', 'message': 'Camera detection started successfully'})
+        else:
+            return jsonify({'status': 'already_running', 'message': 'Camera detection is already running'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to start camera: {str(e)}'}), 500
+
+@app.route('/stop_camera_detection', methods=['POST'])
+def stop_camera_detection():
+    """Stop the camera detection"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    global camera_detector
+    
+    try:
+        if camera_detector and camera_detector.is_running():
+            camera_detector.stop()
+            return jsonify({'status': 'stopped', 'message': 'Camera detection stopped'})
+        else:
+            return jsonify({'status': 'not_running', 'message': 'Camera detection is not running'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to stop camera: {str(e)}'}), 500
+
+@app.route('/camera_detection_status')
+def camera_detection_status():
+    """Get the current status of camera detection"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    global camera_detector
+    
+    if camera_detector and camera_detector.is_running():
+        results = camera_detector.get_detection_results()
+        face_count = camera_detector.get_face_count()
+        return jsonify({
+            'status': 'running',
+            'face_count': face_count,
+            'detections': results[-5:] if results else []  # Last 5 detections
+        })
+    else:
+        return jsonify({
+            'status': 'stopped',
+            'face_count': 0,
+            'detections': []
+        })
+
+@app.route('/camera_feed')
+def camera_feed():
+    """Video streaming route for camera feed"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+    
+    def generate_frames():
+        global camera_detector
+        while camera_detector and camera_detector.is_running():
+            frame = camera_detector.get_frame_with_detections()
+            if frame is not None:
+                # Encode frame as JPEG
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if ret:
+                    frame_bytes = buffer.tobytes()
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            time.sleep(0.1)  # Control frame rate
+    
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/match_fingerprint', methods=['GET', 'POST'])
 def match_fp_route():
