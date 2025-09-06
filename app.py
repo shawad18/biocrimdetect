@@ -44,9 +44,16 @@ except ImportError as e:
 try:
     from fingerprints.match_fingerprint import match_fingerprint
     FINGERPRINT_MATCHING_AVAILABLE = True
+    print("Original fingerprint matching loaded")
 except ImportError:
-    FINGERPRINT_MATCHING_AVAILABLE = False
-    print("Fingerprint matching not available")
+    try:
+        # Fallback to simple mock fingerprint matching
+        from fingerprints.simple_mock_fingerprint import match_fingerprint
+        FINGERPRINT_MATCHING_AVAILABLE = True
+        print("Simple mock fingerprint matching loaded")
+    except ImportError:
+        FINGERPRINT_MATCHING_AVAILABLE = False
+        print("Fingerprint matching not available")
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -528,12 +535,12 @@ def gen_frames():
     
     try:
         if live_recognition is None:
-            if FACE_RECOGNITION_AVAILABLE:
+            if FACE_RECOGNITION_AVAILABLE and CV2_AVAILABLE:
                 live_recognition = LiveFaceRecognition()
             else:
-                # Use camera manager for better simulation options
-                from facial_recognition.camera_manager import get_camera_instance
-                live_recognition = get_camera_instance()
+                # Use simple mock camera that works without OpenCV
+                from facial_recognition.simple_mock_camera import SimpleMockCamera
+                live_recognition = SimpleMockCamera()
             
             if live_recognition is not None:
                 live_recognition.start()
