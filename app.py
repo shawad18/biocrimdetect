@@ -5,7 +5,14 @@ import logging
 from datetime import datetime
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
-import cv2
+
+# Try to import cv2, but handle the case where it's not available (like on Heroku)
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("OpenCV (cv2) not available - camera features will be disabled")
 
 # Try to import face recognition modules, but continue if not available
 try:
@@ -656,10 +663,10 @@ def live_camera_detection():
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
     
-    # Check if simple camera detection is available
-    if not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
+    # Check if OpenCV and simple camera detection are available
+    if not CV2_AVAILABLE or not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
         return render_template('feature_unavailable.html', 
-                              message="Real camera detection is not available. OpenCV is required.")
+                              message="Real camera detection is not available. OpenCV is required but not supported on this platform.")
     
     return render_template('live_camera_detection.html')
 
@@ -669,8 +676,8 @@ def start_camera_detection():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
-    if not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
-        return jsonify({'error': 'Camera detection not available'}), 400
+    if not CV2_AVAILABLE or not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
+        return jsonify({'error': 'Camera detection not available - OpenCV required'}), 400
     
     global camera_detector
     
@@ -729,6 +736,9 @@ def camera_feed():
     """Video streaming route for camera feed"""
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
+    
+    if not CV2_AVAILABLE:
+        return jsonify({'error': 'OpenCV not available'}), 400
     
     def generate_frames():
         global camera_detector
