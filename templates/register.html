@@ -137,7 +137,8 @@
         
         .form-group input[type="text"],
          .form-group input[type="date"],
-         .form-group input[type="file"] {
+         .form-group input[type="file"],
+         .form-group select {
              width: 100%;
              padding: 12px 15px;
              border: 2px solid #e1e5e9;
@@ -145,13 +146,41 @@
              font-size: 1rem;
              transition: all 0.3s ease;
              box-sizing: border-box;
+             background: white;
          }
          
          .form-group input[type="text"]:focus,
-         .form-group input[type="date"]:focus {
+         .form-group input[type="date"]:focus,
+         .form-group select:focus {
              outline: none;
              border-color: #667eea;
              box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+         }
+         
+         .form-group select {
+             cursor: pointer;
+             appearance: none;
+             background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23666" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+             background-repeat: no-repeat;
+             background-position: right 12px center;
+             background-size: 12px;
+             padding-right: 40px;
+         }
+         
+         .form-group optgroup {
+             font-weight: bold;
+             color: #667eea;
+             background: #f8f9fa;
+         }
+         
+         .form-group option {
+             padding: 8px;
+             color: #333;
+             background: white;
+         }
+         
+         .form-group option:hover {
+             background: #f0f2ff;
          }
          
          .form-group input[type="date"] {
@@ -405,7 +434,108 @@
                      
                      <div class="form-group">
                          <label for="crime"><i class="fas fa-gavel"></i> Type of Crime</label>
-                         <input type="text" id="crime" name="crime" placeholder="Enter crime type or description" required>
+                         <select id="crime" name="crime" required>
+                             <option value="">Select Crime Type</option>
+                             <optgroup label="Cyber Crimes">
+                                 <option value="Identity Theft">Identity Theft</option>
+                                 <option value="Credit Card Fraud">Credit Card Fraud</option>
+                                 <option value="Online Banking Fraud">Online Banking Fraud</option>
+                                 <option value="Phishing">Phishing</option>
+                                 <option value="Email Fraud">Email Fraud</option>
+                                 <option value="Cyberbullying">Cyberbullying</option>
+                                 <option value="Cyberstalking">Cyberstalking</option>
+                                 <option value="Online Harassment">Online Harassment</option>
+                                 <option value="Hacking">Hacking</option>
+                                 <option value="Data Breach">Data Breach</option>
+                                 <option value="Ransomware">Ransomware</option>
+                                 <option value="Malware Distribution">Malware Distribution</option>
+                                 <option value="Computer Virus">Computer Virus</option>
+                                 <option value="Trojan Horse">Trojan Horse</option>
+                                 <option value="Spyware">Spyware</option>
+                                 <option value="Adware">Adware</option>
+                                 <option value="Denial of Service (DoS)">Denial of Service (DoS)</option>
+                                 <option value="Distributed Denial of Service (DDoS)">Distributed Denial of Service (DDoS)</option>
+                                 <option value="SQL Injection">SQL Injection</option>
+                                 <option value="Cross-Site Scripting (XSS)">Cross-Site Scripting (XSS)</option>
+                                 <option value="Man-in-the-Middle Attack">Man-in-the-Middle Attack</option>
+                                 <option value="Social Engineering">Social Engineering</option>
+                                 <option value="Online Scam">Online Scam</option>
+                                 <option value="Investment Fraud">Investment Fraud</option>
+                                 <option value="Cryptocurrency Fraud">Cryptocurrency Fraud</option>
+                                 <option value="NFT Fraud">NFT Fraud</option>
+                                 <option value="Online Auction Fraud">Online Auction Fraud</option>
+                                 <option value="Romance Scam">Romance Scam</option>
+                                 <option value="Tech Support Scam">Tech Support Scam</option>
+                                 <option value="Business Email Compromise">Business Email Compromise</option>
+                                 <option value="CEO Fraud">CEO Fraud</option>
+                                 <option value="Invoice Fraud">Invoice Fraud</option>
+                                 <option value="Payroll Fraud">Payroll Fraud</option>
+                                 <option value="Online Child Exploitation">Online Child Exploitation</option>
+                                 <option value="Child Pornography">Child Pornography</option>
+                                 <option value="Sextortion">Sextortion</option>
+                                 <option value="Revenge Porn">Revenge Porn</option>
+                                 <option value="Deepfake Abuse">Deepfake Abuse</option>
+                                 <option value="Online Drug Trafficking">Online Drug Trafficking</option>
+                                 <option value="Dark Web Activities">Dark Web Activities</option>
+                                 <option value="Illegal Gambling">Illegal Gambling</option>
+                                 <option value="Money Laundering">Money Laundering</option>
+                                 <option value="Terrorist Financing">Terrorist Financing</option>
+                                 <option value="Cyber Terrorism">Cyber Terrorism</option>
+                                 <option value="Espionage">Espionage</option>
+                                 <option value="Corporate Espionage">Corporate Espionage</option>
+                                 <option value="Intellectual Property Theft">Intellectual Property Theft</option>
+                                 <option value="Copyright Infringement">Copyright Infringement</option>
+                                 <option value="Software Piracy">Software Piracy</option>
+                                 <option value="Digital Piracy">Digital Piracy</option>
+                                 <option value="Trademark Violation">Trademark Violation</option>
+                                 <option value="Patent Infringement">Patent Infringement</option>
+                                 <option value="Trade Secret Theft">Trade Secret Theft</option>
+                                 <option value="Insider Trading">Insider Trading</option>
+                                 <option value="Market Manipulation">Market Manipulation</option>
+                                 <option value="Pump and Dump Scheme">Pump and Dump Scheme</option>
+                                 <option value="Ponzi Scheme">Ponzi Scheme</option>
+                                 <option value="Pyramid Scheme">Pyramid Scheme</option>
+                                 <option value="Click Fraud">Click Fraud</option>
+                                 <option value="Ad Fraud">Ad Fraud</option>
+                                 <option value="Affiliate Fraud">Affiliate Fraud</option>
+                                 <option value="Domain Hijacking">Domain Hijacking</option>
+                                 <option value="DNS Poisoning">DNS Poisoning</option>
+                                 <option value="Session Hijacking">Session Hijacking</option>
+                                 <option value="Account Takeover">Account Takeover</option>
+                                 <option value="Credential Stuffing">Credential Stuffing</option>
+                                 <option value="Brute Force Attack">Brute Force Attack</option>
+                                 <option value="Password Cracking">Password Cracking</option>
+                                 <option value="Keylogging">Keylogging</option>
+                                 <option value="Screen Scraping">Screen Scraping</option>
+                                 <option value="Web Scraping Abuse">Web Scraping Abuse</option>
+                                 <option value="API Abuse">API Abuse</option>
+                                 <option value="Bot Attacks">Bot Attacks</option>
+                                 <option value="Automated Attacks">Automated Attacks</option>
+                                 <option value="Zero-Day Exploit">Zero-Day Exploit</option>
+                                 <option value="Advanced Persistent Threat">Advanced Persistent Threat</option>
+                                 <option value="Supply Chain Attack">Supply Chain Attack</option>
+                                 <option value="Firmware Attack">Firmware Attack</option>
+                                 <option value="IoT Device Hacking">IoT Device Hacking</option>
+                                 <option value="Smart Device Abuse">Smart Device Abuse</option>
+                                 <option value="Mobile App Fraud">Mobile App Fraud</option>
+                                 <option value="SMS Fraud">SMS Fraud</option>
+                                 <option value="Voice Phishing (Vishing)">Voice Phishing (Vishing)</option>
+                                 <option value="Smishing">Smishing</option>
+                                 <option value="SIM Swapping">SIM Swapping</option>
+                                 <option value="Mobile Banking Fraud">Mobile Banking Fraud</option>
+                                 <option value="App Store Fraud">App Store Fraud</option>
+                                 <option value="In-App Purchase Fraud">In-App Purchase Fraud</option>
+                                 <option value="Gaming Fraud">Gaming Fraud</option>
+                                 <option value="Virtual Currency Theft">Virtual Currency Theft</option>
+                                 <option value="Online Gaming Scam">Online Gaming Scam</option>
+                                 <option value="Streaming Fraud">Streaming Fraud</option>
+                                 <option value="Subscription Fraud">Subscription Fraud</option>
+                                 <option value="Digital Wallet Fraud">Digital Wallet Fraud</option>
+                                 <option value="QR Code Fraud">QR Code Fraud</option>
+                                 <option value="Contactless Payment Fraud">Contactless Payment Fraud</option>
+                                 <option value="Other Cyber Crime">Other Cyber Crime</option>
+                             </optgroup>
+                         </select>
                      </div>
                     
 

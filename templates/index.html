@@ -1180,20 +1180,63 @@
             }
         }
         
-        // Update statistics cards
+        // Update statistics cards with integrated database data
         function updateStatistics(threatsData, casesData) {
-            // Count suspects from database (mock for now)
-            document.getElementById('totalSuspects').textContent = '24';
+            // Total suspects from criminal database (real data)
+            document.getElementById('totalSuspects').textContent = casesData.total_suspects || 0;
             
-            // Active threats
-            const activeThreats = threatsData.threats ? threatsData.threats.filter(t => t.status === 'Active').length : 5;
+            // Active threats from database-integrated threat analysis
+            const activeThreats = casesData.active_threats || threatsData.threats?.filter(t => t.status === 'Active').length || 0;
             document.getElementById('activeThreats').textContent = activeThreats;
             
-            // Active cases
-            document.getElementById('activeCases').textContent = casesData.in_progress || 12;
+            // Active cases (real data from database)
+            document.getElementById('activeCases').textContent = casesData.in_progress || 0;
             
-            // Completion rate
-            document.getElementById('completionRate').textContent = (casesData.completion_rate || 85) + '%';
+            // Completion rate (real data from database)
+            document.getElementById('completionRate').textContent = (casesData.completion_rate || 0) + '%';
+            
+            // Add database integration indicator
+            if (casesData.database_integrated) {
+                addDatabaseIntegrationIndicator();
+            }
+            
+            // Update crime distribution if available
+            if (casesData.crime_distribution) {
+                updateCrimeDistribution(casesData.crime_distribution);
+            }
+        }
+        
+        // Add visual indicator that data is integrated with criminal database
+        function addDatabaseIntegrationIndicator() {
+            const indicators = document.querySelectorAll('.stat-card');
+            indicators.forEach(card => {
+                if (!card.querySelector('.db-indicator')) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'db-indicator';
+                    indicator.innerHTML = '<i class="fas fa-database"></i> Live Data';
+                    indicator.style.cssText = `
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                        background: rgba(0, 255, 136, 0.2);
+                        color: #00ff88;
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        font-size: 10px;
+                        font-weight: bold;
+                        z-index: 10;
+                    `;
+                    card.style.position = 'relative';
+                    card.appendChild(indicator);
+                }
+            });
+        }
+        
+        // Update crime distribution display
+        function updateCrimeDistribution(crimeData) {
+            console.log('Crime Distribution from Database:', crimeData);
+            // This data can be used to update charts or create new visualizations
+            window.crimeDistribution = crimeData;
         }
         
         // Update charts
@@ -1281,9 +1324,11 @@
              
              if (caseChart) caseChart.destroy();
              
-             const newCases = Math.floor(Math.random() * 10) + 5;
-             const inProgress = Math.floor(Math.random() * 15) + 8;
-             const resolved = Math.floor(Math.random() * 20) + 15;
+             // Use real data from the dashboard API
+             const casesData = window.dashboardData?.cases || {};
+             const newCases = casesData.new_cases || 0;
+             const inProgress = casesData.in_progress || 0;
+             const resolved = casesData.resolved || 0;
              
              caseChart = new Chart(ctx, {
                   type: 'bar',

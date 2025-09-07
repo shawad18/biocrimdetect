@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Fingerprint Scanner - Biometric Crime Detection</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .scanner-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(16, 24, 38, 0.85);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(76, 201, 240, 0.3);
+            padding-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #4cc9f0;
+            margin: 0;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .scanner-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .scanner-device {
+            background: linear-gradient(145deg, #2a3441, #1e2832);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(76, 201, 240, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .device-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .device-brand {
+            color: #4cc9f0;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .device-model {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+        
+        .scan-area {
+            width: 200px;
+            height: 250px;
+            background: linear-gradient(45deg, #1a4d3a, #0d2818);
+            border: 3px solid #00ff88;
+            border-radius: 10px;
+            margin: 20px auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .scan-area.scanning {
+            animation: scanPulse 2s infinite;
+        }
+        
+        @keyframes scanPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(0, 255, 136, 0.8), inset 0 0 20px rgba(0, 255, 136, 0.2); }
+        }
+        
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            top: 0;
+            animation: scanLine 3s infinite;
+            opacity: 0;
+        }
+        
+        .scan-area.scanning .scan-line {
+            opacity: 1;
+        }
+        
+        @keyframes scanLine {
+            0% { top: 0; }
+            100% { top: calc(100% - 3px); }
+        }
+        
+        .fingerprint-placeholder {
+            width: 120px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.1), transparent);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(0, 255, 136, 0.6);
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .device-display {
+            background: #000;
+            color: #00ff88;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-height: 80px;
+            border: 1px solid #333;
+        }
+        
+        .status-panel {
+            background: rgba(76, 201, 240, 0.1);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 10px;
+            padding: 25px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4cc9f0;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            color: #4cc9f0;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            min-width: 150px;
+            justify-content: center;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #4cc9f0, #7209b7);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #ff453a, #cc3629);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: rgba(76, 201, 240, 0.1);
+            color: #4cc9f0;
+            border: 1px solid rgba(76, 201, 240, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 201, 240, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .scan-results {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .scan-results.show {
+            display: block;
+        }
+        
+        .scan-results.match-found {
+            background: rgba(255, 69, 58, 0.1);
+            border-color: rgba(255, 69, 58, 0.3);
+        }
+        
+        .scan-results.no-match {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+        
+        .result-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .result-details {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .scanner-info {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .quality-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .quality-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff453a, #ffc107, #00ff88);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanner-container">
+        <div class="header">
+            <h1><i class="fas fa-fingerprint"></i> Real Fingerprint Scanner</h1>
+            <p>Professional biometric identification system</p>
+        </div>
+        
+        <div class="scanner-layout">
+            <!-- Scanner Device Simulation -->
+            <div class="scanner-device">
+                <div class="device-header">
+                    <div class="device-brand">HFSecurity</div>
+                    <div class="device-model">Professional Fingerprint Scanner</div>
+                </div>
+                
+                <div class="scan-area" id="scanArea">
+                    <div class="scan-line"></div>
+                    <div class="fingerprint-placeholder" id="fingerprintPlaceholder">
+                        Place finger here
+                    </div>
+                </div>
+                
+                <div class="device-display" id="deviceDisplay">
+                    > Scanner Ready<br>
+                    > Place finger on sensor<br>
+                    > Status: Standby
+                </div>
+            </div>
+            
+            <!-- Status Panel -->
+            <div class="status-panel">
+                <h3><i class="fas fa-chart-line"></i> Scanner Status</h3>
+                
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Scanner Status</div>
+                        <div class="status-value" id="scannerStatus">Ready</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Scan Quality</div>
+                        <div class="status-value" id="scanQuality">0%</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Last Scan</div>
+                        <div class="status-value" id="lastScan">None</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Database Size</div>
+                        <div class="status-value" id="databaseSize">3 Records</div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">Scan Quality</div>
+                    <div class="quality-bar">
+                        <div class="quality-fill" id="qualityFill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <button id="startScanBtn" class="btn btn-success" onclick="startScan()">
+                <i class="fas fa-play"></i> Start Scan
+            </button>
+            <button id="matchBtn" class="btn btn-primary" onclick="matchFingerprint()" disabled>
+                <i class="fas fa-search"></i> Match Database
+            </button>
+            <button id="clearBtn" class="btn btn-warning" onclick="clearScan()" disabled>
+                <i class="fas fa-eraser"></i> Clear Scan
+            </button>
+            <button id="stopBtn" class="btn btn-danger" onclick="stopScan()" disabled>
+                <i class="fas fa-stop"></i> Stop Scanner
+            </button>
+            <a href="/home" class="btn btn-secondary">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+        </div>
+        
+        <!-- Scan Results -->
+        <div class="scan-results" id="scanResults">
+            <div class="result-header" id="resultHeader">
+                <i class="fas fa-info-circle"></i> Scan Results
+            </div>
+            <div class="result-details" id="resultDetails">
+                Scan results will appear here...
+            </div>
+        </div>
+        
+        <!-- Scanner Information -->
+        <div class="scanner-info">
+            <h3><i class="fas fa-info-circle"></i> Scanner Information</h3>
+            <div class="info-grid" id="scannerInfo">
+                <div class="info-item">
+                    <span>Device Type:</span>
+                    <span>Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let isScanning = false;
+        let scanInterval = null;
+        let statusInterval = null;
+        
+        // Initialize scanner info on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadScannerInfo();
+            startStatusMonitoring();
+        });
+        
+        function startScan() {
+            fetch('/api/fingerprint/start_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    isScanning = true;
+                    updateUI();
+                    startScanAnimation();
+                    updateDeviceDisplay('> Initializing scanner...\n> Place finger on sensor\n> Status: Scanning');
+                } else {
+                    alert('Failed to start scanner: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error starting scanner');
+            });
+        }
+        
+        function stopScan() {
+            fetch('/api/fingerprint/stop_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                isScanning = false;
+                stopScanAnimation();
+                updateUI();
+                updateDeviceDisplay('> Scanner stopped\n> Ready for next scan\n> Status: Standby');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function matchFingerprint() {
+            document.getElementById('matchBtn').disabled = true;
+            document.getElementById('matchBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Matching...';
+            
+            fetch('/api/fingerprint/match', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data);
+                document.getElementById('matchBtn').disabled = false;
+                document.getElementById('matchBtn').innerHTML = '<i class="fas fa-search"></i> Match Database';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('matchBtn').disabled = false;
+                document.getElementById('matchBtn').innerHTML = '<i class="fas fa-search"></i> Match Database';
+            });
+        }
+        
+        function clearScan() {
+            fetch('/api/fingerprint/clear_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('scanResults').classList.remove('show');
+                updateDeviceDisplay('> Scan data cleared\n> Ready for new scan\n> Status: Ready');
+                updateUI();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function startScanAnimation() {
+            const scanArea = document.getElementById('scanArea');
+            scanArea.classList.add('scanning');
+        }
+        
+        function stopScanAnimation() {
+            const scanArea = document.getElementById('scanArea');
+            scanArea.classList.remove('scanning');
+        }
+        
+        function updateDeviceDisplay(text) {
+            document.getElementById('deviceDisplay').innerHTML = text;
+        }
+        
+        function startStatusMonitoring() {
+            statusInterval = setInterval(() => {
+                fetch('/api/fingerprint/scan_status')
+                .then(response => response.json())
+                .then(data => {
+                    updateStatus(data);
+                })
+                .catch(error => {
+                    console.error('Status error:', error);
+                });
+            }, 1000);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('scannerStatus').textContent = status.status || 'Unknown';
+            document.getElementById('scanQuality').textContent = status.quality + '%';
+            
+            // Update quality bar
+            const qualityFill = document.getElementById('qualityFill');
+            qualityFill.style.width = status.quality + '%';
+            
+            if (status.last_scan) {
+                const scanTime = new Date(status.last_scan).toLocaleTimeString();
+                document.getElementById('lastScan').textContent = scanTime;
+            }
+            
+            // Update UI based on scan availability
+            if (status.has_scan && !document.getElementById('matchBtn').disabled) {
+                document.getElementById('matchBtn').disabled = false;
+                document.getElementById('clearBtn').disabled = false;
+            }
+            
+            // Update scanning state
+            if (status.is_scanning !== isScanning) {
+                isScanning = status.is_scanning;
+                updateUI();
+                if (isScanning) {
+                    startScanAnimation();
+                } else {
+                    stopScanAnimation();
+                }
+            }
+        }
+        
+        function updateUI() {
+            const startBtn = document.getElementById('startScanBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (isScanning) {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('scanResults');
+            const headerDiv = document.getElementById('resultHeader');
+            const detailsDiv = document.getElementById('resultDetails');
+            
+            resultsDiv.classList.remove('match-found', 'no-match');
+            
+            if (data.status === 'match_found') {
+                resultsDiv.classList.add('match-found', 'show');
+                headerDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> CRIMINAL MATCH FOUND!';
+                
+                const criminal = data.criminal_details;
+                let detailsHtml = `<strong style="color: #ff453a;">⚠️ WANTED CRIMINAL DETECTED</strong><br><br>`;
+                detailsHtml += `<strong>Name:</strong> ${criminal.full_name}<br>`;
+                detailsHtml += `<strong>Crime:</strong> ${criminal.crime}<br>`;
+                detailsHtml += `<strong>Case ID:</strong> ${criminal.case_id}<br>`;
+                detailsHtml += `<strong>Match Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%<br>`;
+                detailsHtml += `<strong>Scan Quality:</strong> ${data.scan_quality}%<br>`;
+                detailsHtml += `<strong>Minutiae Matched:</strong> ${data.minutiae_matched}<br><br>`;
+                detailsHtml += `<strong style="color: #ffc107;">⚠️ Alert authorities immediately</strong><br>`;
+                detailsHtml += `<small>Detection Time: ${new Date(data.match_timestamp).toLocaleString()}</small>`;
+                
+                detailsDiv.innerHTML = detailsHtml;
+                
+            } else if (data.status === 'no_match') {
+                resultsDiv.classList.add('no-match', 'show');
+                headerDiv.innerHTML = '<i class="fas fa-check-circle"></i> No Criminal Match';
+                
+                let detailsHtml = `<strong style="color: #00ff88;">✅ CLEAN RECORD</strong><br><br>`;
+                detailsHtml += `<strong>Status:</strong> No criminal match found<br>`;
+                detailsHtml += `<strong>Database Searched:</strong> ${data.database_size} records<br>`;
+                detailsHtml += `<strong>Scan Quality:</strong> ${data.scan_quality}%<br><br>`;
+                detailsHtml += `<small>This person is not in the criminal database</small><br>`;
+                detailsHtml += `<small>Scan Time: ${new Date(data.match_timestamp).toLocaleString()}</small>`;
+                
+                detailsDiv.innerHTML = detailsHtml;
+                
+            } else {
+                resultsDiv.classList.add('show');
+                headerDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Scan Error';
+                detailsDiv.innerHTML = `<strong>Error:</strong> ${data.message}`;
+            }
+        }
+        
+        function loadScannerInfo() {
+            fetch('/api/fingerprint/scanner_info')
+            .then(response => response.json())
+            .then(data => {
+                const infoGrid = document.getElementById('scannerInfo');
+                infoGrid.innerHTML = '';
+                
+                const infoItems = [
+                    ['Device Type', data.scanner_type],
+                    ['Device ID', data.device_id],
+                    ['Status', data.status],
+                    ['Firmware', data.firmware_version],
+                    ['Resolution', data.resolution],
+                    ['Scan Area', data.scan_area],
+                    ['Quality Threshold', data.quality_threshold + '%'],
+                    ['Last Calibration', data.last_calibration],
+                    ['Supported Formats', data.supported_formats.join(', ')]
+                ];
+                
+                infoItems.forEach(([label, value]) => {
+                    const item = document.createElement('div');
+                    item.className = 'info-item';
+                    item.innerHTML = `<span>${label}:</span><span>${value}</span>`;
+                    infoGrid.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading scanner info:', error);
+            });
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+            if (isScanning) {
+                fetch('/api/fingerprint/stop_scan', { method: 'POST' }).catch(() => {});
+            }
+        });
+    </script>
+</body>
+</html>

@@ -302,6 +302,27 @@ class AdvancedFingerprintScanner:
 
 def perform_live_fingerprint_scan(quality_level: str = 'good') -> Dict:
     """Main function for live fingerprint scanning"""
+    
+    # Check for actual hardware scanner
+    hardware_status = _check_hardware_scanner()
+    
+    if not hardware_status['scanner_detected']:
+        return {
+            'scan_successful': False,
+            'match_found': False,
+            'error': 'No fingerprint scanner hardware detected',
+            'error_code': 'HARDWARE_NOT_FOUND',
+            'message': 'Please connect a compatible fingerprint scanner device',
+            'supported_devices': [
+                'Digital Persona U.are.U 4500',
+                'Suprema BioMini Plus 2',
+                'HID DigitalPersona 4500',
+                'Futronic FS88H',
+                'SecuGen Hamster Pro 20'
+            ],
+            'timestamp': datetime.now().isoformat()
+        }
+    
     scanner = AdvancedFingerprintScanner()
     
     print("🔬 Advanced Fingerprint Scanner v2.1 Initialized")
@@ -334,6 +355,79 @@ def perform_live_fingerprint_scan(quality_level: str = 'good') -> Dict:
     print("🏁 Fingerprint Analysis Complete")
     
     return final_result
+
+def _check_hardware_scanner() -> Dict:
+    """Check for actual fingerprint scanner hardware"""
+    import platform
+    import subprocess
+    import os
+    
+    try:
+        system = platform.system().lower()
+        
+        if system == 'windows':
+            # Check for USB fingerprint devices on Windows
+            try:
+                result = subprocess.run(
+                    ['powershell', '-Command', 'Get-PnpDevice | Where-Object {$_.FriendlyName -like "*fingerprint*" -or $_.FriendlyName -like "*biometric*"} | Select-Object FriendlyName, Status'],
+                    capture_output=True, text=True, timeout=10
+                )
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    devices = result.stdout.strip()
+                    if 'fingerprint' in devices.lower() or 'biometric' in devices.lower():
+                        return {
+                            'scanner_detected': True,
+                            'device_info': devices,
+                            'platform': system
+                        }
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+                pass
+                
+        elif system == 'linux':
+            # Check for USB devices on Linux
+            try:
+                result = subprocess.run(['lsusb'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    usb_devices = result.stdout.lower()
+                    fingerprint_keywords = ['fingerprint', 'biometric', 'digitalpersona', 'suprema', 'secugen']
+                    if any(keyword in usb_devices for keyword in fingerprint_keywords):
+                        return {
+                            'scanner_detected': True,
+                            'device_info': 'USB fingerprint device detected',
+                            'platform': system
+                        }
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+                pass
+                
+        # Check for common fingerprint scanner software/drivers
+        common_paths = [
+            'C:\\Program Files\\DigitalPersona',
+            'C:\\Program Files (x86)\\DigitalPersona',
+            '/usr/lib/libfprint',
+            '/usr/local/lib/libfprint'
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return {
+                    'scanner_detected': True,
+                    'device_info': f'Scanner software found at {path}',
+                    'platform': system
+                }
+        
+        return {
+            'scanner_detected': False,
+            'platform': system,
+            'message': 'No fingerprint scanner hardware or software detected'
+        }
+        
+    except Exception as e:
+        return {
+            'scanner_detected': False,
+            'error': f'Hardware detection failed: {str(e)}',
+            'platform': platform.system().lower()
+        }
 
 if __name__ == "__main__":
     # Test the scanner

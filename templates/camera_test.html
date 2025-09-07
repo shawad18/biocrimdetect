@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Camera Test - Biometric Crime Detection</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(16, 24, 38, 0.85);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(76, 201, 240, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            color: #4cc9f0;
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .camera-section {
+            margin-bottom: 30px;
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 2px solid rgba(76, 201, 240, 0.3);
+        }
+        
+        .video-feed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .status-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status-card {
+            background: rgba(76, 201, 240, 0.1);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            color: #4cc9f0;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #4cc9f0, #7209b7);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 201, 240, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #ff453a, #cc3629);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(76, 201, 240, 0.1);
+            color: #4cc9f0;
+            border: 1px solid rgba(76, 201, 240, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .info-section {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .info-section h3 {
+            color: #ffc107;
+            margin-top: 0;
+        }
+        
+        .detection-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #00ff88;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="header">
+            <h1><i class="fas fa-video"></i> Real Camera Test</h1>
+            <p>Testing real webcam integration with OpenCV</p>
+        </div>
+        
+        <div class="camera-section">
+            <div class="video-container">
+                <img id="videoFeed" class="video-feed" alt="Camera feed will appear here" style="display: none;">
+                <div class="detection-overlay" id="detectionStatus">Camera Offline</div>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-card">
+                    <div class="status-label">Camera Status</div>
+                    <div class="status-value" id="cameraStatus">Offline</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Faces Detected</div>
+                    <div class="status-value" id="facesDetected">0</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Frame Rate</div>
+                    <div class="status-value" id="frameRate">0 FPS</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Resolution</div>
+                    <div class="status-value" id="resolution">0x0</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="startBtn" class="btn btn-success" onclick="startCamera()">
+                    <i class="fas fa-play"></i> Start Camera
+                </button>
+                <button id="stopBtn" class="btn btn-danger" onclick="stopCamera()" disabled>
+                    <i class="fas fa-stop"></i> Stop Camera
+                </button>
+                <button id="captureBtn" class="btn btn-primary" onclick="captureFrame()" disabled>
+                    <i class="fas fa-camera"></i> Capture Frame
+                </button>
+                <a href="/home" class="btn btn-secondary">
+                    <i class="fas fa-home"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h3><i class="fas fa-info-circle"></i> Real Camera Features</h3>
+            <ul>
+                <li><strong>Live Video Feed:</strong> Direct access to your webcam using OpenCV</li>
+                <li><strong>Face Detection:</strong> Real-time face detection using Haar Cascades</li>
+                <li><strong>High Performance:</strong> 30 FPS video capture with 640x480 resolution</li>
+                <li><strong>Mirror Effect:</strong> Horizontally flipped for natural viewing</li>
+                <li><strong>Timestamp Overlay:</strong> Live timestamp display on video feed</li>
+                <li><strong>Detection Boxes:</strong> Green rectangles around detected faces</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        let isStreaming = false;
+        let frameCount = 0;
+        let lastFrameTime = Date.now();
+        
+        function startCamera() {
+            fetch('/start_stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    isStreaming = true;
+                    
+                    // Update UI
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('captureBtn').disabled = false;
+                    
+                    // Start video feed
+                    const videoFeed = document.getElementById('videoFeed');
+                    videoFeed.src = '/video_feed?t=' + new Date().getTime();
+                    videoFeed.style.display = 'block';
+                    
+                    // Update status
+                    updateStatus('Online', 'Camera Active');
+                    
+                    // Start monitoring
+                    startMonitoring();
+                    
+                } else {
+                    alert('Failed to start camera: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error starting camera: ' + error.message);
+            });
+        }
+        
+        function stopCamera() {
+            fetch('/stop_stream')
+            .then(response => response.json())
+            .then(data => {
+                isStreaming = false;
+                
+                // Update UI
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('captureBtn').disabled = true;
+                
+                // Stop video feed
+                const videoFeed = document.getElementById('videoFeed');
+                videoFeed.style.display = 'none';
+                videoFeed.src = '';
+                
+                // Update status
+                updateStatus('Offline', 'Camera Stopped');
+                
+            })
+            .catch(error => {
+                alert('Error stopping camera: ' + error.message);
+            });
+        }
+        
+        function captureFrame() {
+            if (isStreaming) {
+                // Simulate frame capture
+                alert('Frame captured! (This is a simulation - in a real implementation, this would save the current frame)');
+            }
+        }
+        
+        function updateStatus(status, detection) {
+            document.getElementById('cameraStatus').textContent = status;
+            document.getElementById('detectionStatus').textContent = detection;
+        }
+        
+        function startMonitoring() {
+            if (!isStreaming) return;
+            
+            // Monitor recognition results
+            fetch('/get_recognition_results')
+            .then(response => response.json())
+            .then(data => {
+                const faces = data.results || [];
+                document.getElementById('facesDetected').textContent = faces.length;
+                
+                if (faces.length > 0) {
+                    updateStatus('Online', `${faces.length} Face(s) Detected`);
+                } else {
+                    updateStatus('Online', 'Scanning for Faces...');
+                }
+            })
+            .catch(error => {
+                console.error('Error getting recognition results:', error);
+            });
+            
+            // Calculate frame rate
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFrameTime >= 1000) {
+                const fps = Math.round(frameCount * 1000 / (now - lastFrameTime));
+                document.getElementById('frameRate').textContent = fps + ' FPS';
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+            
+            // Update resolution (simulated)
+            document.getElementById('resolution').textContent = '640x480';
+            
+            // Continue monitoring
+            if (isStreaming) {
+                setTimeout(startMonitoring, 1000);
+            }
+        }
+        
+        // Handle video feed errors
+        document.getElementById('videoFeed').onerror = function() {
+            console.error('Video feed error');
+            updateStatus('Error', 'Video Feed Failed');
+        };
+        
+        // Handle video feed load
+        document.getElementById('videoFeed').onload = function() {
+            console.log('Video feed loaded');
+            updateStatus('Online', 'Video Feed Active');
+        };
+    </script>
+</body>
+</html>

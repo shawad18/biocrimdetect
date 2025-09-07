@@ -890,6 +890,15 @@
             justify-content: center;
         }
         
+        .btn-compact {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            min-width: 80px;
+            gap: 6px;
+            margin: 2px;
+            border-radius: 18px;
+        }
+        
         .btn-primary {
             background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
@@ -1240,24 +1249,24 @@
                       </div>
                   </div>
                   
-                  <div class="controls">
-                      <button id="startScanBtn" class="btn">
-                          <i class="fas fa-play"></i> Start Full Scan
+                  <div class="controls" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                      <button id="startScanBtn" class="btn btn-compact">
+                          <i class="fas fa-play"></i> Start
                       </button>
-                      <button id="scanAllBtn" class="btn" disabled>
-                          <i class="fas fa-hand-paper"></i> Scan All Fingers
+                      <button id="scanAllBtn" class="btn btn-compact" disabled>
+                          <i class="fas fa-hand-paper"></i> Scan All
                       </button>
-                      <button id="resetBtn" class="btn btn-secondary">
-                          <i class="fas fa-redo"></i> Reset Scanner
+                      <button id="resetBtn" class="btn btn-compact btn-secondary">
+                          <i class="fas fa-redo"></i> Reset
                       </button>
-                      <button id="stopBtn" class="btn btn-danger" disabled>
-                          <i class="fas fa-stop"></i> Stop Scanning
+                      <button id="stopBtn" class="btn btn-compact btn-danger" disabled>
+                          <i class="fas fa-stop"></i> Stop
                       </button>
-                      <a href="/match_fingerprint" class="btn btn-secondary">
-                          <i class="fas fa-arrow-left"></i> Back to Options
+                      <a href="/match_fingerprint" class="btn btn-compact btn-secondary">
+                          <i class="fas fa-arrow-left"></i> Back
                       </a>
-                      <a href="/home" class="btn btn-primary">
-                          <i class="fas fa-home"></i> Dashboard
+                      <a href="/home" class="btn btn-compact btn-primary">
+                          <i class="fas fa-home"></i> Home
                       </a>
                   </div>
               </div>
@@ -1419,7 +1428,23 @@
                             completeScan();
                         }
                     } else {
-                        // Handle scan error
+                        // Check for hardware detection error
+                        if (data.error_code === 'HARDWARE_NOT_FOUND') {
+                            // Stop scanning and show hardware error
+                            isScanning = false;
+                            scannerStatus.textContent = 'Hardware Error';
+                            currentFinger.textContent = 'Scanner Not Found';
+                            
+                            // Show hardware error modal
+                            showHardwareErrorModal(data);
+                            
+                            // Reset UI
+                            slot.classList.remove('scanning');
+                            resetScannerUI();
+                            return;
+                        }
+                        
+                        // Handle other scan errors
                         slot.classList.remove('scanning');
                         slot.classList.add('error');
                         fingerData.scanned = true;
@@ -1538,22 +1563,48 @@
             function startFullScan() {
                 if (isScanning) return;
                 
-                isScanning = true;
-                currentScanIndex = 0;
-                scanStartTime = Date.now();
-                
-                scannerStatus.textContent = 'Active';
-                
-                // Update button states
-                startScanBtn.disabled = true;
-                scanAllBtn.disabled = true;
-                stopBtn.disabled = false;
-                
-                // Start scanning first finger
-                scanFinger(currentScanIndex);
-                
-                // Start status update timer
-                scanInterval = setInterval(updateStatus, 1000);
+                // First check for hardware validation by making a test scan request
+                fetch('/match_fingerprint/process_live', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        finger_position: 'hardware_check',
+                        quality: 'test'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Check if hardware validation failed
+                    if (!data.success && data.error_code === 'HARDWARE_NOT_FOUND') {
+                        // Show hardware error modal
+                        showHardwareErrorModal(data);
+                        return;
+                    }
+                    
+                    // Hardware validation passed, proceed with scanning
+                    isScanning = true;
+                    currentScanIndex = 0;
+                    scanStartTime = Date.now();
+                    
+                    scannerStatus.textContent = 'Active';
+                    
+                    // Update button states
+                    startScanBtn.disabled = true;
+                    scanAllBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    
+                    // Start scanning first finger
+                    scanFinger(currentScanIndex);
+                    
+                    // Start status update timer
+                    scanInterval = setInterval(updateStatus, 1000);
+                })
+                .catch(error => {
+                    console.error('Hardware validation error:', error);
+                    alert('Failed to validate scanner hardware. Please ensure a compatible fingerprint scanner is connected.');
+                });
             }
             
             // Scan all remaining fingers
@@ -1564,23 +1615,49 @@
                 let startIndex = fingersData.findIndex(finger => !finger.scanned);
                 if (startIndex === -1) return; // All fingers already scanned
                 
-                isScanning = true;
-                currentScanIndex = startIndex;
-                if (!scanStartTime) scanStartTime = Date.now();
-                
-                scannerStatus.textContent = 'Active';
-                
-                // Update button states
-                startScanBtn.disabled = true;
-                scanAllBtn.disabled = true;
-                stopBtn.disabled = false;
-                
-                // Start scanning from first unscanned finger
-                scanFinger(currentScanIndex);
-                
-                if (!scanInterval) {
-                    scanInterval = setInterval(updateStatus, 1000);
-                }
+                // First check for hardware validation by making a test scan request
+                fetch('/match_fingerprint/process_live', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        finger_position: 'hardware_check',
+                        quality: 'test'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Check if hardware validation failed
+                    if (!data.success && data.error_code === 'HARDWARE_NOT_FOUND') {
+                        // Show hardware error modal
+                        showHardwareErrorModal(data);
+                        return;
+                    }
+                    
+                    // Hardware validation passed, proceed with scanning
+                    isScanning = true;
+                    currentScanIndex = startIndex;
+                    if (!scanStartTime) scanStartTime = Date.now();
+                    
+                    scannerStatus.textContent = 'Active';
+                    
+                    // Update button states
+                    startScanBtn.disabled = true;
+                    scanAllBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    
+                    // Start scanning from first unscanned finger
+                    scanFinger(currentScanIndex);
+                    
+                    if (!scanInterval) {
+                        scanInterval = setInterval(updateStatus, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Hardware validation error:', error);
+                    alert('Failed to validate scanner hardware. Please ensure a compatible fingerprint scanner is connected.');
+                });
             }
             
             // Stop scanning
@@ -1645,7 +1722,86 @@
                 });
             });
             
-            // Initialize
+            // Show hardware error modal
+            function showHardwareErrorModal(errorData) {
+                const modal = document.getElementById('resultModal');
+                const modalContent = document.getElementById('modalContent');
+                const modalIcon = document.getElementById('modalIcon');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalDetails = document.getElementById('modalDetails');
+                
+                modalContent.className = 'modal-content no-match';
+                modalIcon.innerHTML = '⚠️';
+                modalIcon.className = 'modal-icon error';
+                modalTitle.textContent = 'Scanner Hardware Not Found';
+                
+                let detailsHTML = `
+                    <div style="text-align: left; margin: 20px 0;">
+                        <p><strong>Error:</strong> ${errorData.message}</p>
+                        <p><strong>Issue:</strong> No fingerprint scanner hardware detected</p>
+                        <br>
+                        <p><strong>Supported Devices:</strong></p>
+                        <ul style="text-align: left; margin: 10px 0;">
+                `;
+                
+                if (errorData.supported_devices) {
+                    errorData.supported_devices.forEach(device => {
+                        detailsHTML += `<li>• ${device}</li>`;
+                    });
+                }
+                
+                detailsHTML += `
+                        </ul>
+                        <br>
+                        <p><strong>Solutions:</strong></p>
+                        <ul style="text-align: left; margin: 10px 0;">
+                            <li>• Connect a compatible fingerprint scanner</li>
+                            <li>• Install scanner drivers if needed</li>
+                            <li>• Check USB connection</li>
+                            <li>• Restart the application after connecting scanner</li>
+                        </ul>
+                    </div>
+                `;
+                
+                modalDetails.innerHTML = detailsHTML;
+                modal.style.display = 'block';
+            }
+            
+            // Reset scanner UI
+            function resetScannerUI() {
+                startScanBtn.disabled = false;
+                scanAllBtn.disabled = true;
+                stopBtn.disabled = true;
+                
+                // Reset all finger slots
+                fingerSlots.forEach(slot => {
+                    slot.classList.remove('scanning', 'scanned', 'match', 'error');
+                });
+                
+                // Reset progress
+                overallProgress.style.width = '0%';
+                progressText.textContent = '0 / 10 Fingers Scanned';
+                
+                // Reset counters
+                scannedFingers = 0;
+                totalMatches = 0;
+                currentScanIndex = 0;
+                
+                // Reset status
+                scannerStatus.textContent = 'Ready';
+                currentFinger.textContent = 'None';
+                scannedCount.textContent = '0 / 10';
+                matchesFound.textContent = '0';
+                scanTime.textContent = '--:--';
+                
+                // Hide results
+                resultsSection.classList.remove('show');
+                
+                // Reset finger data
+                initializeFingers();
+            }
+            
+            // Initialize on page load
             initializeFingers();
             updateStatus();
         });

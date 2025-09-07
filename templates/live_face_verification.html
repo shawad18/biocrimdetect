@@ -783,26 +783,36 @@
             let matchCooldown = 5000; // 5 seconds cooldown between match notifications
             
             // Show match popup notification
-            function showMatchPopup(name, isMatch) {
+            function showMatchPopup(name, isMatch, criminalDetails = null) {
                 if (isMatch) {
                     modalContent.className = 'modal-content match-found';
-                    modalIcon.innerHTML = '✅';
+                    modalIcon.innerHTML = '🚨';
                     modalIcon.className = 'modal-icon success';
-                    modalTitle.textContent = 'SUSPECT MATCH FOUND!';
-                    modalDetails.innerHTML = `
-                        <strong>Identified as: ${name}</strong><br>
-                        <small>This person is in our database.</small><br>
-                        <small>Time: ${new Date().toLocaleTimeString()}</small>
-                    `;
+                    modalTitle.textContent = 'CRIMINAL MATCH FOUND!';
+                    
+                    let detailsHtml = `<strong style="color: #ff453a;">⚠️ WANTED CRIMINAL DETECTED</strong><br><br>`;
+                    detailsHtml += `<strong>Name:</strong> ${name}<br>`;
+                    
+                    if (criminalDetails) {
+                        detailsHtml += `<strong>Crime:</strong> ${criminalDetails.crime}<br>`;
+                        detailsHtml += `<strong>Case ID:</strong> ${criminalDetails.case_id}<br>`;
+                        detailsHtml += `<strong>Status:</strong> <span style="color: #ff453a;">ACTIVE WARRANT</span><br><br>`;
+                        detailsHtml += `<small style="color: #ffc107;">⚠️ Alert authorities immediately</small><br>`;
+                    } else {
+                        detailsHtml += `<br><small>Criminal record found in database</small><br>`;
+                    }
+                    
+                    detailsHtml += `<small>Detection Time: ${new Date().toLocaleTimeString()}</small>`;
+                    modalDetails.innerHTML = detailsHtml;
                 } else {
                     modalContent.className = 'modal-content no-match';
-                    modalIcon.innerHTML = '❌';
+                    modalIcon.innerHTML = '✅';
                     modalIcon.className = 'modal-icon error';
-                    modalTitle.textContent = 'No Match Found';
+                    modalTitle.textContent = 'No Criminal Match';
                     modalDetails.innerHTML = `
-                        <strong>Person not in database</strong><br>
-                        <small>This person is not a known suspect.</small><br>
-                        <small>Time: ${new Date().toLocaleTimeString()}</small>
+                        <strong>Person not in criminal database</strong><br>
+                        <small>This person is not a known criminal.</small><br>
+                        <small>Scan Time: ${new Date().toLocaleTimeString()}</small>
                     `;
                 }
                 
@@ -841,54 +851,85 @@
                     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
                     startBtn.disabled = true;
                     
-                    // Set up video feed with error handling
-                    video.onerror = function() {
-                        console.error('Video feed error');
-                        updateStatus('Error', 'Failed');
-                        alert('Error accessing video feed. Please refresh the page and try again.');
-                        resetControls();
-                    };
-                    
-                    // Set the video source with a timestamp to prevent caching
-                    video.src = "/video_feed?t=" + new Date().getTime();
-                    
-                    // Show the video feed
-                    video.style.display = 'block';
-                    streamActive = true;
-                    sessionStats.sessionStart = Date.now();
-                    
-                    // Update UI state
-                    setTimeout(() => {
-                        updateStatus('Online', 'Active');
-                        startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
-                        captureBtn.disabled = false;
-                        stopBtn.disabled = false;
-                        
-                        // Show scanning indicator
-                        scanningIndicator.classList.add('active');
-                        
-                        // Start polling for recognition results
-                        resultsInterval = setInterval(fetchRecognitionResults, 1000);
-                        
-                        // Start status update timer
-                        const statusTimer = setInterval(() => {
-                            if (streamActive) {
-                                updateStatus('Online', 'Scanning');
-                            } else {
-                                clearInterval(statusTimer);
-                            }
-                        }, 1000);
-                    }, 1000);
-                    
-                    // Set a timeout to check if video is working
-                    setTimeout(function() {
-                        if (video.naturalWidth === 0 && streamActive) {
-                            console.error('Video feed timeout');
-                            updateStatus('Error', 'Timeout');
-                            alert('Video feed not responding. Please try again.');
-                            stopBtn.click();
+                    // Start the camera stream on the server first
+                    fetch('/start_stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
-                    }, 5000); // 5 second timeout
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Set up video feed with error handling
+                            video.onerror = function() {
+                                console.error('Video feed error');
+                                updateStatus('Error', 'Video feed failed');
+                                // Try to restart the video feed
+                                setTimeout(() => {
+                                    if (streamActive) {
+                                        video.src = "/video_feed?t=" + new Date().getTime();
+                                    }
+                                }, 2000);
+                            };
+                            
+                            video.onload = function() {
+                                console.log('Video feed loaded successfully');
+                                updateStatus('Online', 'Active');
+                            };
+                            
+                            // Set the video source with a timestamp to prevent caching
+                            video.src = "/video_feed?t=" + new Date().getTime();
+                            
+                            // Show the video feed
+                            video.style.display = 'block';
+                            streamActive = true;
+                            sessionStats.sessionStart = Date.now();
+                            
+                            // Update UI state
+                            setTimeout(() => {
+                                updateStatus('Online', 'Active');
+                                startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
+                                captureBtn.disabled = false;
+                                stopBtn.disabled = false;
+                                
+                                // Show scanning indicator
+                                scanningIndicator.classList.add('active');
+                                
+                                // Start polling for recognition results
+                                resultsInterval = setInterval(fetchRecognitionResults, 1000);
+                                
+                                // Start status update timer
+                                const statusTimer = setInterval(() => {
+                                    if (streamActive) {
+                                        updateStatus('Online', 'Scanning');
+                                    } else {
+                                        clearInterval(statusTimer);
+                                    }
+                                }, 1000);
+                            }, 1000);
+                            
+                            // Set a timeout to check if video is working
+                            setTimeout(function() {
+                                if (video.naturalWidth === 0 && streamActive) {
+                                    console.error('Video feed timeout - trying to reload');
+                                    // Try reloading the video feed
+                                    video.src = "/video_feed?t=" + new Date().getTime();
+                                    updateStatus('Online', 'Retrying feed...');
+                                }
+                            }, 3000);
+                            
+                        } else {
+                            updateStatus('Error', data.message || 'Failed to start');
+                            alert('Failed to start camera: ' + (data.message || 'Unknown error'));
+                            resetControls();
+                        }
+                    })
+                    .catch(error => {
+                        updateStatus('Error', 'Connection failed');
+                        alert('Error starting camera: ' + error.message);
+                        resetControls();
+                    });
                 }
             });
             
@@ -1013,25 +1054,40 @@
                         const results = data.results;
                         if (results.length > 0) {
                             let matchFound = false;
-                            let matchedName = '';
+                            let matchedResult = null;
                             
                             results.forEach(result => {
                                 if (result.match) {
                                     matchFound = true;
-                                    matchedName = result.name;
+                                    matchedResult = result;
                                 }
                             });
                             
                             resultContainer.style.display = 'block';
-                            if (matchFound) {
+                            if (matchFound && matchedResult) {
                                 resultContainer.className = 'match-found';
-                                resultText.textContent = 'Match Found!';
-                                resultDetails.textContent = `Identified as: ${matchedName}`;
-                                showMatchPopup(matchedName, true);
+                                resultText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> CRIMINAL MATCH FOUND!';
+                                
+                                // Display detailed criminal information
+                                let detailsHtml = `<strong>Name:</strong> ${matchedResult.name}<br>`;
+                                detailsHtml += `<strong>Confidence:</strong> ${(matchedResult.confidence * 100).toFixed(1)}%<br>`;
+                                
+                                if (matchedResult.criminal_details) {
+                                    const details = matchedResult.criminal_details;
+                                    detailsHtml += `<strong>Crime:</strong> ${details.crime}<br>`;
+                                    detailsHtml += `<strong>Case ID:</strong> ${details.case_id}<br>`;
+                                    detailsHtml += `<strong>Status:</strong> <span style="color: #ff453a;">WANTED</span><br>`;
+                                    detailsHtml += `<small>Match found in criminal database</small>`;
+                                } else {
+                                    detailsHtml += `<small>Criminal record details available</small>`;
+                                }
+                                
+                                resultDetails.innerHTML = detailsHtml;
+                                showMatchPopup(matchedResult.name, true, matchedResult.criminal_details);
                             } else {
                                 resultContainer.className = 'no-match';
                                 resultText.textContent = 'No Match Found';
-                                resultDetails.textContent = 'This person is not in our database.';
+                                resultDetails.textContent = 'This person is not in our criminal database.';
                                 showMatchPopup('', false);
                             }
                         } else {
