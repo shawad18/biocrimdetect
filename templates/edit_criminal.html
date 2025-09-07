@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Criminal Record - Biometric Crime Detection</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        html {
+            height: 100%;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .edit-container {
+            max-width: 800px;
+            margin: 0 auto 40px auto;
+            background: rgba(16, 24, 38, 0.85);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 60px rgba(76, 201, 240, 0.1);
+            position: relative;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(76, 201, 240, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            color: #4cc9f0;
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4cc9f0;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(26, 35, 50, 0.8);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4cc9f0;
+            box-shadow: 0 0 10px rgba(76, 201, 240, 0.3);
+        }
+        
+        .form-group select option {
+            background: rgba(26, 35, 50, 0.9);
+            color: #e0e0e0;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #4cc9f0, #7209b7);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 201, 240, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(76, 201, 240, 0.1);
+            color: #4cc9f0;
+            border: 1px solid rgba(76, 201, 240, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(76, 201, 240, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .current-info {
+            background: rgba(76, 201, 240, 0.1);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .current-info h3 {
+            color: #4cc9f0;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .current-info p {
+            margin: 5px 0;
+            color: #e0e0e0;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+            color: #28a745;
+        }
+        
+        .alert-error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="edit-container">
+        <div class="header">
+            <h1><i class="fas fa-edit"></i> Edit Criminal Record</h1>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="current-info">
+            <h3>Current Information</h3>
+            <p><strong>ID:</strong> {{ criminal[0] }}</p>
+            <p><strong>Name:</strong> {{ criminal[1] or 'Not specified' }}</p>
+            <p><strong>Crime:</strong> {{ criminal[2] or 'Not specified' }}</p>
+            <p><strong>Age:</strong> {{ criminal[5] or 'Not specified' }}</p>
+            <p><strong>Case ID:</strong> {{ criminal[6] or 'Not assigned' }}</p>
+            <p><strong>Status:</strong> {{ 'Active' if criminal[11] == 1 else 'Inactive' }}</p>
+        </div>
+        
+        <form method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ criminal[7] or '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ criminal[8] or '' }}" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" value="{{ criminal[1] or '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="crime">Type of Crime</label>
+                <textarea id="crime" name="crime" rows="3" required>{{ criminal[2] or '' }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" id="age" name="age" value="{{ criminal[5] or '' }}" min="1" max="120">
+            </div>
+            
+            <div class="form-group">
+                <label for="active">Status</label>
+                <select id="active" name="active" required>
+                    <option value="1" {{ 'selected' if criminal[11] == 1 else '' }}>Active</option>
+                    <option value="0" {{ 'selected' if criminal[11] == 0 else '' }}>Inactive</option>
+                </select>
+            </div>
+            
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Record
+                </button>
+                <a href="{{ url_for('view_criminals') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        // Auto-update full name when first/last name changes
+        document.getElementById('first_name').addEventListener('input', updateFullName);
+        document.getElementById('last_name').addEventListener('input', updateFullName);
+        
+        function updateFullName() {
+            const firstName = document.getElementById('first_name').value;
+            const lastName = document.getElementById('last_name').value;
+            document.getElementById('name').value = `${firstName} ${lastName}`.trim();
+        }
+        
+        // Ensure proper scrolling behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Enable smooth scrolling
+            document.documentElement.style.scrollBehavior = 'smooth';
+            
+            // Ensure body can scroll
+            document.body.style.overflowY = 'auto';
+            document.body.style.height = 'auto';
+            
+            // Focus on first input for better UX
+            document.getElementById('first_name').focus();
+        });
+    </script>
+</body>
+</html>

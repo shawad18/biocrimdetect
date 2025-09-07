@@ -661,6 +661,25 @@
              margin-bottom: 10px;
          }
          
+         .error-result {
+             background: rgba(220, 53, 69, 0.2);
+             border: 1px solid rgba(220, 53, 69, 0.5);
+             border-radius: 10px;
+             padding: 15px;
+             margin-bottom: 10px;
+         }
+         
+         .finger-slot.error {
+             background: linear-gradient(145deg, #ff6b35, #f7931e);
+             border-color: #ffc107;
+             animation: errorPulse 1s ease-in-out infinite alternate;
+         }
+         
+         @keyframes errorPulse {
+             0% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.5); }
+             100% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.8); }
+         }
+         
          /* Results Display */
          .results-section {
              background: rgba(0, 20, 40, 0.8);
@@ -1329,7 +1348,7 @@
                 }
             }
             
-            // Scan individual finger
+            // Scan individual finger using advanced scanner
             function scanFinger(index) {
                 const slot = fingerSlots[index];
                 const fingerData = fingersData[index];
@@ -1343,43 +1362,101 @@
                 // Add scanning animation
                 slot.classList.add('scanning');
                 
-                // Simulate scan process
-                setTimeout(() => {
-                    // Random chance of match (25%)
-                    const hasMatch = Math.random() < 0.25;
-                    
-                    if (hasMatch) {
-                        const suspect = mockDatabase[Math.floor(Math.random() * mockDatabase.length)];
-                        const confidence = suspect.confidence + Math.floor(Math.random() * 10) - 5;
+                // Call advanced fingerprint scanner API
+                fetch('/match_fingerprint/process_live', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quality: 'good',
+                        finger_position: fingerData.name.toLowerCase().replace(' ', '_')
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.match_found) {
+                            fingerData.match = true;
+                            fingerData.suspect = data.suspect_name;
+                            fingerData.confidence = Math.round(data.confidence);
+                            fingerData.caseId = data.case_id;
+                            fingerData.matchQuality = data.match_quality;
+                            fingerData.patternType = data.pattern_type;
+                            fingerData.minutiaeDetected = data.minutiae_detected;
+                            fingerData.minutiaeMatches = data.minutiae_matches;
+                            fingerData.verificationLevel = data.verification_level;
+                            fingerData.scanQuality = Math.round(data.scan_quality);
+                            fingerData.processingTime = data.processing_time;
+                            fingerData.scannerAlgorithm = data.scanner_algorithm;
+                            
+                            slot.classList.remove('scanning');
+                            slot.classList.add('match');
+                            
+                            totalMatches++;
+                        } else {
+                            fingerData.match = false;
+                            fingerData.scanQuality = Math.round(data.scan_quality || 75);
+                            fingerData.minutiaeDetected = data.minutiae_detected || 0;
+                            fingerData.patternType = data.pattern_type || 'Unknown';
+                            fingerData.processingTime = data.processing_time || 0;
+                            
+                            slot.classList.remove('scanning');
+                            slot.classList.add('scanned');
+                        }
                         
-                        fingerData.match = true;
-                        fingerData.suspect = suspect.name;
-                        fingerData.confidence = confidence;
+                        fingerData.scanned = true;
+                        scannedFingers++;
                         
-                        slot.classList.remove('scanning');
-                        slot.classList.add('match');
+                        updateStatus();
+                        updateResults();
                         
-                        totalMatches++;
+                        // Continue to next finger if auto-scanning
+                        if (isScanning && scannedFingers < 10) {
+                            currentScanIndex++;
+                            setTimeout(() => scanFinger(currentScanIndex), 500);
+                        } else if (scannedFingers >= 10) {
+                            completeScan();
+                        }
                     } else {
+                        // Handle scan error
                         slot.classList.remove('scanning');
-                        slot.classList.add('scanned');
+                        slot.classList.add('error');
+                        fingerData.scanned = true;
+                        fingerData.error = data.error || 'Scan failed';
+                        scannedFingers++;
+                        
+                        updateStatus();
+                        updateResults();
+                        
+                        // Continue scanning even if one finger fails
+                        if (isScanning && scannedFingers < 10) {
+                            currentScanIndex++;
+                            setTimeout(() => scanFinger(currentScanIndex), 500);
+                        } else if (scannedFingers >= 10) {
+                            completeScan();
+                        }
                     }
-                    
+                })
+                .catch(error => {
+                    console.error('Scanner error:', error);
+                    slot.classList.remove('scanning');
+                    slot.classList.add('error');
                     fingerData.scanned = true;
+                    fingerData.error = 'Network error';
                     scannedFingers++;
                     
                     updateStatus();
                     updateResults();
                     
-                    // Continue to next finger if auto-scanning
+                    // Continue scanning even if one finger fails
                     if (isScanning && scannedFingers < 10) {
                         currentScanIndex++;
-                        setTimeout(() => scanFinger(currentScanIndex), 1000);
+                        setTimeout(() => scanFinger(currentScanIndex), 500);
                     } else if (scannedFingers >= 10) {
                         completeScan();
                     }
-                    
-                }, 2000); // 2 second scan time per finger
+                 });
             }
             
             // Update results display
@@ -1401,7 +1478,23 @@
                                     <h4><i class="fas fa-check-circle"></i> ${finger.name} - MATCH FOUND</h4>
                                     <p><strong>Suspect:</strong> ${finger.suspect}</p>
                                     <p><strong>Confidence:</strong> ${finger.confidence}%</p>
-                                    <p><strong>Status:</strong> Positive identification</p>
+                                    <p><strong>Case ID:</strong> ${finger.caseId || 'N/A'}</p>
+                                    <p><strong>Match Quality:</strong> ${finger.matchQuality || 'Good'}</p>
+                                    <p><strong>Pattern Type:</strong> ${finger.patternType || 'Unknown'}</p>
+                                    <p><strong>Minutiae Detected:</strong> ${finger.minutiaeDetected || 0}</p>
+                                    <p><strong>Minutiae Matches:</strong> ${finger.minutiaeMatches || 0}</p>
+                                    <p><strong>Verification Level:</strong> ${finger.verificationLevel || 'MEDIUM'}</p>
+                                    <p><strong>Scan Quality:</strong> ${finger.scanQuality || 0}%</p>
+                                    <p><strong>Processing Time:</strong> ${finger.processingTime || 0}s</p>
+                                    <p><strong>Algorithm:</strong> ${finger.scannerAlgorithm || 'Advanced Scanner'}</p>
+                                </div>
+                            `;
+                        } else if (finger.error) {
+                            resultsHTML += `
+                                <div class="error-result">
+                                    <h4><i class="fas fa-exclamation-triangle"></i> ${finger.name} - SCAN ERROR</h4>
+                                    <p><strong>Error:</strong> ${finger.error}</p>
+                                    <p><strong>Status:</strong> Scan failed - please retry</p>
                                 </div>
                             `;
                         } else {
@@ -1409,7 +1502,10 @@
                                 <div class="no-match-result">
                                     <h4><i class="fas fa-times-circle"></i> ${finger.name} - No Match</h4>
                                     <p><strong>Status:</strong> Not in database</p>
-                                    <p><strong>Quality:</strong> Scan completed successfully</p>
+                                    <p><strong>Pattern Type:</strong> ${finger.patternType || 'Unknown'}</p>
+                                    <p><strong>Minutiae Detected:</strong> ${finger.minutiaeDetected || 0}</p>
+                                    <p><strong>Scan Quality:</strong> ${finger.scanQuality || 0}%</p>
+                                    <p><strong>Processing Time:</strong> ${finger.processingTime || 0}s</p>
                                 </div>
                             `;
                         }

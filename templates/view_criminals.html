@@ -203,6 +203,40 @@
             margin-bottom: 10px;
         }
         
+        .fingerprint-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .fingerprint-thumb {
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(145deg, #2a3441, #1e2832);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4cc9f0;
+            font-size: 12px;
+            border: 1px solid rgba(76, 201, 240, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .fingerprint-thumb:hover {
+            border-color: rgba(76, 201, 240, 0.5);
+            transform: scale(1.1);
+        }
+        
+        .fingerprint-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
         .fingerprint-placeholder {
             width: 80px;
             height: 80px;
@@ -274,6 +308,50 @@
             background: rgba(76, 201, 240, 0.2);
             transform: scale(1.1);
         }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+            color: #28a745;
+        }
+        
+        .alert-error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #dc3545;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-badge.active {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+            color: #28a745;
+        }
+        
+        .status-badge.inactive {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -281,6 +359,17 @@
         <div class="header">
             <h1><i class="fas fa-database"></i> Criminal Database</h1>
         </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         
         <div class="controls">
             <div class="search-box">
@@ -361,17 +450,24 @@
                             <div class="full-name">${criminal.name}</div>
                             <div class="age">AGE: ${criminal.age || 'Unknown'}</div>
                             <div class="crime-type">TYPE OF CRIME<br>${criminal.crime}</div>
-                            <div class="case-id">${criminal.case_id || 'No Case ID'}</div>
+                            <div class="case-id">${criminal.case_id || generateCaseId()}</div>
+                            <div class="status-badge ${criminal.active == 1 ? 'active' : 'inactive'}">
+                                ${criminal.active == 1 ? 'ACTIVE' : 'INACTIVE'}
+                            </div>
                         </div>
                     </div>
                     
                     <div class="fingerprint-section">
-                        <div class="fingerprint-label">Fingerprint Thumb</div>
-                        <div class="fingerprint-placeholder">
-                            ${criminal.fingerprint_image ? 
-                                `<img src="/uploads/fingerprint_images/${criminal.fingerprint_image}" alt="Fingerprint">` : 
-                                '<i class="fas fa-fingerprint"></i>'
-                            }
+                        <div class="fingerprint-label">FINGERPRINT THUMB</div>
+                        <div class="fingerprint-grid">
+                            ${Array.from({length: 10}, (_, i) => `
+                                <div class="fingerprint-thumb">
+                                    ${criminal.fingerprint_image && i === 0 ? 
+                                        `<img src="/uploads/fingerprint_images/${criminal.fingerprint_image}" alt="Fingerprint ${i+1}">` : 
+                                        '<i class="fas fa-fingerprint"></i>'
+                                    }
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 </div>
@@ -389,15 +485,25 @@
         }
         
         function editCriminal(id) {
-            // Implement edit functionality
-            alert(`Edit criminal with ID: ${id}`);
+            // Redirect to edit page
+            window.location.href = `/edit_criminal/${id}`;
         }
         
         function deleteCriminal(id) {
-            if (confirm('Are you sure you want to delete this criminal record?')) {
-                // Implement delete functionality
-                alert(`Delete criminal with ID: ${id}`);
+            if (confirm('Are you sure you want to delete this criminal record? This action cannot be undone.')) {
+                // Create a form and submit it for deletion
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/delete_criminal/${id}`;
+                document.body.appendChild(form);
+                form.submit();
             }
+        }
+        
+        function generateCaseId() {
+            const prefix = 'CC-';
+            const randomNum = Math.floor(Math.random() * 90000) + 10000; // 5-digit number
+            return prefix + randomNum;
         }
         
         // Event listeners
@@ -417,7 +523,8 @@
                      age: {{ criminal[5] or 'null' }},
                      case_id: "{{ criminal[6] or '' }}",
                      first_name: "{{ criminal[7] or '' }}",
-                     last_name: "{{ criminal[8] or '' }}"
+                     last_name: "{{ criminal[8] or '' }}",
+                     active: {{ criminal[11] or 1 }}
                  }{% if not loop.last %},{% endif %}
                  {% endfor %}
              ];

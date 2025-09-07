@@ -423,15 +423,19 @@ def register_criminal():
                 suspect_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], suspect_photo.filename)
                 suspect_photo.save(suspect_photo_path)
 
+            # Generate auto case ID
+            import random
+            case_id = f"CC-{random.randint(10000, 99999)}"
+            
             # Save record to DB
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
             # Check if the new columns exist, if not add them
             try:
-                cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                                  (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
+                cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo, case_id, active)
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                                  (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename, case_id, 1))
             except sqlite3.OperationalError:
                 # If columns don't exist, add them
                 try:
@@ -442,9 +446,9 @@ def register_criminal():
                     cursor.execute('ALTER TABLE criminals ADD COLUMN suspect_photo TEXT')
                     conn.commit()
                     # Try the insert again
-                    cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo)
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                                      (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename))
+                    cursor.execute('''INSERT INTO criminals (name, first_name, last_name, date_of_birth, age, crime, face_image, fingerprint_image, suspect_photo, case_id, active)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                                      (full_name, first_name, last_name, date_of_birth, age, crime, face_image.filename, fingerprint_image.filename, suspect_photo_filename, case_id, 1))
                 except sqlite3.OperationalError:
                     # Fallback to old schema
                     cursor.execute('''INSERT INTO criminals (name, crime, face_image, fingerprint_image)
@@ -478,13 +482,68 @@ def view_criminals():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth
+        SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth, active
         FROM criminals
         ORDER BY id DESC
     """)
     data = cursor.fetchall()
     conn.close()
     return render_template('view_criminals.html', criminals=data)
+
+@app.route('/edit_criminal/<int:criminal_id>', methods=['GET', 'POST'])
+def edit_criminal(criminal_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        # Update criminal record
+        name = request.form.get('name')
+        crime = request.form.get('crime')
+        age = request.form.get('age')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        active = request.form.get('active', '1')  # Default to active
+        
+        cursor.execute("""
+            UPDATE criminals 
+            SET name=?, crime=?, age=?, first_name=?, last_name=?, active=?
+            WHERE id=?
+        """, (name, crime, age, first_name, last_name, active, criminal_id))
+        
+        conn.commit()
+        conn.close()
+        flash('Criminal record updated successfully!', 'success')
+        return redirect(url_for('view_criminals'))
+    
+    # GET request - show edit form
+    cursor.execute("SELECT * FROM criminals WHERE id=?", (criminal_id,))
+    criminal = cursor.fetchone()
+    conn.close()
+    
+    if not criminal:
+        flash('Criminal not found!', 'error')
+        return redirect(url_for('view_criminals'))
+    
+    return render_template('edit_criminal.html', criminal=criminal)
+
+@app.route('/delete_criminal/<int:criminal_id>', methods=['POST'])
+def delete_criminal(criminal_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Delete the criminal record
+    cursor.execute("DELETE FROM criminals WHERE id=?", (criminal_id,))
+    conn.commit()
+    conn.close()
+    
+    flash('Criminal record deleted successfully!', 'success')
+    return redirect(url_for('view_criminals'))
 
 @app.route('/match', methods=['GET', 'POST'])
 def match_face_route():
@@ -594,15 +653,16 @@ def gen_frames():
 @app.route('/video_feed')
 def video_feed():
     if not session.get('admin_logged_in'):
-        return redirect(url_for('login'))
+        # Return a proper error response instead of redirect for video feeds
+        return Response("Authentication required", status=401, mimetype='text/plain')
     
     try:
         return Response(gen_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
     except Exception as e:
         print(f"Error in video_feed route: {str(e)}")
-        # Return a static error image instead of failing
-        return redirect(url_for('static', filename='img/camera_error.jpg'))
+        # Return a proper error response instead of redirect
+        return Response(f"Video feed error: {str(e)}", status=500, mimetype='text/plain')
 
 
 @app.route('/stop_stream')
@@ -888,45 +948,51 @@ def get_fingerprint_results():
 
 @app.route('/match_fingerprint/process_live', methods=['POST'])
 def process_live_fingerprint_verification():
-    """Process live fingerprint verification"""
+    """Process live fingerprint verification using advanced scanner"""
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        # Simulate fingerprint processing
-        import random
-        time.sleep(1)  # Simulate processing time
+        # Import the advanced fingerprint scanner
+        from fingerprints.advanced_fingerprint_scanner import perform_live_fingerprint_scan
         
-        suspects = ['John Doe', 'Jane Smith', 'Robert Johnson', 'Maria Garcia', 'David Wilson']
-        match_found = random.random() > 0.3  # 70% chance of finding a match
+        # Get scan quality from request (optional)
+        quality_level = request.json.get('quality', 'good') if request.is_json else 'good'
         
-        if match_found:
-            suspect_name = random.choice(suspects)
-            confidence = round(85 + random.random() * 10, 1)
-            result = {
-                'success': True,
-                'match_found': True,
-                'suspect_name': suspect_name,
-                'confidence': confidence,
-                'features_detected': random.randint(80, 150),
-                'processing_time': round(random.uniform(0.5, 2.0), 2)
-            }
-        else:
-            result = {
-                'success': True,
-                'match_found': False,
-                'suspect_name': None,
-                'confidence': 0,
-                'features_detected': random.randint(30, 70),
-                'processing_time': round(random.uniform(0.5, 2.0), 2)
-            }
+        # Perform advanced fingerprint scan
+        scan_result = perform_live_fingerprint_scan(quality_level)
+        
+        # Format result for frontend
+        result = {
+            'success': True,
+            'match_found': scan_result.get('match_found', False),
+            'suspect_name': scan_result.get('suspect_name'),
+            'confidence': scan_result.get('confidence_score', 0),
+            'processing_time': scan_result.get('processing_time', 0),
+            'scan_quality': scan_result.get('quality_score', 0) * 100,
+            'minutiae_detected': scan_result.get('minutiae_detected', 0),
+            'pattern_type': scan_result.get('pattern_type', 'Unknown'),
+            'match_quality': scan_result.get('match_quality', 'No Match'),
+            'case_id': scan_result.get('case_id'),
+            'finger_position': scan_result.get('finger_position'),
+            'verification_level': scan_result.get('verification_level', 'LOW'),
+            'minutiae_matches': scan_result.get('minutiae_matches', 0),
+            'database_records_checked': scan_result.get('database_records_checked', 0),
+            'scanner_algorithm': scan_result.get('search_algorithm', 'Advanced Scanner'),
+            'timestamp': scan_result.get('timestamp')
+        }
+        
+        # Add additional details if match found
+        if result['match_found']:
+            result['enrollment_date'] = scan_result.get('enrollment_date')
+            result['pattern_match'] = scan_result.get('pattern_match')
         
         return jsonify(result)
     
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'Scanner error: {str(e)}'
         }), 500
 
 @app.route('/dashboard')
