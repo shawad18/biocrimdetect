@@ -48,6 +48,27 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.cache/
+
+# Large model files
+*.dat
+*.pack
+*.pyd
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
+uploads/
 logs/
 
 # Database
