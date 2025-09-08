@@ -602,10 +602,9 @@ def gen_frames():
             elif FACE_RECOGNITION_AVAILABLE:
                 live_recognition = LiveFaceRecognition()
             else:
-                # Use simple mock camera that works without OpenCV
-                # Simple mock camera removed - using fallback
-                live_recognition = SimpleMockCamera()
-                print("Using mock camera fallback")
+                # Use simple camera detection that works without face_recognition
+                live_recognition = SimpleCameraDetection()
+                print("Using simple camera detection fallback")
             
             if live_recognition is not None:
                 live_recognition.start()
@@ -685,10 +684,9 @@ def start_stream():
                 from facial_recognition.live_recognition import LiveFaceRecognition
                 live_recognition = LiveFaceRecognition()
             else:
-                # Use simple mock camera that works without OpenCV
-                # Simple mock camera removed - using fallback
-                live_recognition = SimpleMockCamera()
-                print("Starting mock camera fallback")
+                # Use simple camera detection that works without face_recognition
+                live_recognition = SimpleCameraDetection()
+                print("Starting simple camera detection fallback")
             
             if live_recognition is not None:
                 live_recognition.start()

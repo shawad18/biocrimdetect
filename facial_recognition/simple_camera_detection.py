@@ -121,7 +121,23 @@ class SimpleCameraDetection:
         return frame_copy
     
     def get_frame(self):
-        """Return the current frame"""
+        """Return the current frame as JPEG bytes for streaming"""
+        if self.frame is None:
+            return None
+        
+        # Get frame with detections
+        frame_with_detections = self.get_frame_with_detections()
+        if frame_with_detections is None:
+            return None
+        
+        # Encode frame as JPEG
+        ret, buffer = cv2.imencode('.jpg', frame_with_detections)
+        if ret:
+            return buffer.tobytes()
+        return None
+    
+    def get_raw_frame(self):
+        """Return the current raw frame"""
         return self.frame
     
     def stop(self):
