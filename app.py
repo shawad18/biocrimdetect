@@ -36,9 +36,15 @@ except ImportError as e:
     except ImportError:
         FACE_RECOGNITION_AVAILABLE = False
         SIMPLE_CAMERA_AVAILABLE = False
-        print("Face recognition modules not available - using enhanced mock recognition")
-        # Import enhanced mock recognition as fallback
-        # Mock recognition fallback removed - face recognition not available
+        print("Face recognition modules not available - using mock camera")
+        # Import mock camera as fallback
+        try:
+            from facial_recognition.mock_camera import MockCamera
+            MOCK_CAMERA_AVAILABLE = True
+            print("Mock camera loaded for hosted environment")
+        except ImportError:
+            MOCK_CAMERA_AVAILABLE = False
+            print("No camera modules available")
 
 # Try to import fingerprint matching, but continue if not available
 try:
@@ -601,10 +607,17 @@ def gen_frames():
                 print("Using real camera with OpenCV")
             elif FACE_RECOGNITION_AVAILABLE:
                 live_recognition = LiveFaceRecognition()
-            else:
+            elif SIMPLE_CAMERA_AVAILABLE:
                 # Use simple camera detection that works without face_recognition
                 live_recognition = SimpleCameraDetection()
                 print("Using simple camera detection fallback")
+            elif MOCK_CAMERA_AVAILABLE:
+                # Use mock camera for hosted environments without OpenCV
+                live_recognition = MockCamera()
+                print("Using mock camera for hosted environment")
+            else:
+                print("No camera modules available")
+                return
             
             if live_recognition is not None:
                 live_recognition.start()
@@ -683,10 +696,16 @@ def start_stream():
             elif FACE_RECOGNITION_AVAILABLE:
                 from facial_recognition.live_recognition import LiveFaceRecognition
                 live_recognition = LiveFaceRecognition()
-            else:
+            elif SIMPLE_CAMERA_AVAILABLE:
                 # Use simple camera detection that works without face_recognition
                 live_recognition = SimpleCameraDetection()
                 print("Starting simple camera detection fallback")
+            elif MOCK_CAMERA_AVAILABLE:
+                # Use mock camera for hosted environments without OpenCV
+                live_recognition = MockCamera()
+                print("Starting mock camera for hosted environment")
+            else:
+                return jsonify({'status': 'error', 'message': 'No camera modules available'})
             
             if live_recognition is not None:
                 live_recognition.start()
