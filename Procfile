@@ -1,1 +1,1 @@
-web: python app.py
+web: python init_face_recognition.py && python app.py
