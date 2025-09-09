@@ -32,32 +32,44 @@ except ImportError:
 
 # Try to import face recognition modules, but continue if not available
 try:
-    # Try to import the simple face recognition first
+    # Try to import the enhanced face detection first
+    from facial_recognition.enhanced_face_detection import EnhancedFaceDetection
     from facial_recognition.simple_face_recognition import recognize_from_image, add_known_face
     from facial_recognition import train_model
     from facial_recognition.live_recognition import LiveFaceRecognition
     from facial_recognition.simple_camera_detection import SimpleCameraDetection
+    ENHANCED_DETECTION_AVAILABLE = True
     FACE_RECOGNITION_AVAILABLE = True
     SIMPLE_CAMERA_AVAILABLE = True
-    print("Simple face recognition modules loaded successfully")
+    print("Enhanced face detection and recognition modules loaded successfully")
 except ImportError as e:
     try:
-        # Fallback to original face_recognition if available
-        from facial_recognition import train_model, recognize_face
-        import face_recognition
-        from facial_recognition.live_recognition import LiveFaceRecognition
-        FACE_RECOGNITION_AVAILABLE = True
-        SIMPLE_CAMERA_AVAILABLE = False
-        print("Original face recognition modules loaded")
-    except ImportError:
+        # Fallback to simple camera detection
+        from facial_recognition.simple_camera_detection import SimpleCameraDetection
+        ENHANCED_DETECTION_AVAILABLE = False
         FACE_RECOGNITION_AVAILABLE = False
-        SIMPLE_CAMERA_AVAILABLE = False
-        print("Face recognition modules not available - using mock camera")
-        # Import mock camera as fallback
+        SIMPLE_CAMERA_AVAILABLE = True
+        print("Simple camera detection loaded")
+    except ImportError:
         try:
-            from facial_recognition.mock_camera import MockCamera
-            MOCK_CAMERA_AVAILABLE = True
-            print("Mock camera loaded for hosted environment")
+            # Fallback to original face_recognition if available
+            from facial_recognition import train_model, recognize_face
+            import face_recognition
+            from facial_recognition.live_recognition import LiveFaceRecognition
+            ENHANCED_DETECTION_AVAILABLE = False
+            FACE_RECOGNITION_AVAILABLE = True
+            SIMPLE_CAMERA_AVAILABLE = False
+            print("Original face recognition modules loaded")
+        except ImportError:
+            ENHANCED_DETECTION_AVAILABLE = False
+            FACE_RECOGNITION_AVAILABLE = False
+            SIMPLE_CAMERA_AVAILABLE = False
+            print("Face recognition modules not available - using mock camera")
+            # Import mock camera as fallback
+            try:
+                from facial_recognition.mock_camera import MockCamera
+                MOCK_CAMERA_AVAILABLE = True
+                print("Mock camera loaded for hosted environment")
         except ImportError:
             MOCK_CAMERA_AVAILABLE = False
             print("No camera modules available")
@@ -769,13 +781,18 @@ def gen_frames():
     
     try:
         if live_recognition is None:
-            if CV2_AVAILABLE:
+            if ENHANCED_DETECTION_AVAILABLE:
+                # Use enhanced face detection with database matching
+                live_recognition = EnhancedFaceDetection()
+                print("🎯 Using enhanced face detection with criminal database matching")
+            elif CV2_AVAILABLE:
                 # Use real camera with OpenCV
                 from facial_recognition.real_camera import RealCamera
                 live_recognition = RealCamera()
                 print("Using real camera with OpenCV")
             elif FACE_RECOGNITION_AVAILABLE:
                 live_recognition = LiveFaceRecognition()
+                print("Using face recognition system")
             elif SIMPLE_CAMERA_AVAILABLE:
                 # Use simple camera detection that works without face_recognition
                 live_recognition = SimpleCameraDetection()
@@ -791,7 +808,7 @@ def gen_frames():
             if live_recognition is not None:
                 live_recognition.start()
                 # Give the camera time to initialize
-                time.sleep(1)
+                time.sleep(1.5)  # Extra time for enhanced detection initialization
             else:
                 print("Failed to initialize camera instance")
                 return
@@ -851,13 +868,69 @@ def video_feed():
         # Return a proper error response instead of redirect
         return Response(f"Video feed error: {str(e)}", status=500, mimetype='text/plain')
 
+@app.route('/detection_results')
+def get_detection_results():
+    """Get current face detection results and statistics"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    global live_recognition
+    
+    try:
+        if live_recognition is None:
+            return jsonify({
+                'status': 'inactive',
+                'message': 'Camera system not initialized',
+                'results': [],
+                'statistics': {}
+            })
+        
+        # Get detection results
+        results = []
+        statistics = {}
+        
+        if hasattr(live_recognition, 'get_detection_results'):
+            results = live_recognition.get_detection_results()
+        
+        if hasattr(live_recognition, 'get_statistics'):
+            statistics = live_recognition.get_statistics()
+        
+        # Format results for frontend
+        formatted_results = []
+        for result in results[-5:]:  # Last 5 detections
+            formatted_result = {
+                'timestamp': result.get('timestamp', time.time()),
+                'location': result.get('location', [0, 0, 0, 0]),
+                'quality': result.get('quality', 0),
+                'confidence': result.get('confidence', 0),
+                'match_found': result.get('match_result', {}).get('match_found', False),
+                'criminal_name': result.get('match_result', {}).get('criminal_name', 'Unknown'),
+                'crime_type': result.get('match_result', {}).get('crime_type', None)
+            }
+            formatted_results.append(formatted_result)
+        
+        return jsonify({
+            'status': 'active',
+            'results': formatted_results,
+            'statistics': statistics,
+            'system_type': 'enhanced' if ENHANCED_DETECTION_AVAILABLE else 'standard'
+        })
+        
+    except Exception as e:
+        print(f"Error getting detection results: {str(e)}")
+        return jsonify({'error': f'Failed to get results: {str(e)}'}), 500
+
 
 @app.route('/start_stream', methods=['POST'])
 def start_stream():
     global live_recognition
     try:
         if live_recognition is None:
-            if CV2_AVAILABLE:
+            if ENHANCED_DETECTION_AVAILABLE:
+                # Use enhanced face detection with database matching
+                live_recognition = EnhancedFaceDetection()
+                print("🚀 Starting enhanced face detection with criminal database matching")
+            elif CV2_AVAILABLE:
                 # Use real camera with OpenCV
                 from facial_recognition.real_camera import RealCamera
                 live_recognition = RealCamera()
@@ -865,6 +938,7 @@ def start_stream():
             elif FACE_RECOGNITION_AVAILABLE:
                 from facial_recognition.live_recognition import LiveFaceRecognition
                 live_recognition = LiveFaceRecognition()
+                print("Starting face recognition system")
             elif SIMPLE_CAMERA_AVAILABLE:
                 # Use simple camera detection that works without face_recognition
                 live_recognition = SimpleCameraDetection()
@@ -879,8 +953,8 @@ def start_stream():
             if live_recognition is not None:
                 live_recognition.start()
                 # Give the camera time to initialize
-                time.sleep(0.5)
-                return jsonify({'status': 'success', 'message': 'Camera started successfully'})
+                time.sleep(1.0)  # Increased time for enhanced detection
+                return jsonify({'status': 'success', 'message': 'Enhanced camera system started successfully', 'type': 'enhanced' if ENHANCED_DETECTION_AVAILABLE else 'standard'})
             else:
                 return jsonify({'status': 'error', 'message': 'Failed to initialize camera'})
         else:
