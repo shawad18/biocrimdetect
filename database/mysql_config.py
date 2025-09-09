@@ -49,10 +49,10 @@ class MySQLConfig:
             }
             print("✅ Using local MySQL configuration")
         
-        # Connection pool configuration
+        # Connection pool configuration (reduced for free tier)
         self.pool_config = {
             'pool_name': 'biometric_pool',
-            'pool_size': 10,
+            'pool_size': 3,  # Reduced for JawsDB free tier
             'pool_reset_session': True
         }
         

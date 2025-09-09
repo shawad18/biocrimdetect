@@ -9,8 +9,14 @@ from flask_wtf.csrf import CSRFProtect
 # MySQL database imports
 try:
     from database.mysql_config import mysql_config, get_mysql_connection, execute_mysql_query
-    MYSQL_AVAILABLE = True
-    print("✅ MySQL configuration loaded successfully")
+    # Test MySQL connection before setting as available
+    if mysql_config.test_connection():
+        MYSQL_AVAILABLE = True
+        print("✅ MySQL configuration loaded and connected successfully")
+    else:
+        MYSQL_AVAILABLE = False
+        print("⚠️ MySQL server not running, falling back to SQLite")
+        import sqlite3
 except ImportError as e:
     MYSQL_AVAILABLE = False
     print(f"⚠️ MySQL not available, falling back to SQLite: {e}")
@@ -270,10 +276,37 @@ def login():
             )
 
         if admin:
+            # Debug: Print admin data type and content
+            print(f"🔍 Admin data type: {type(admin)}")
+            if isinstance(admin, (list, tuple)):
+                print(f"🔍 Admin data (list): {list(admin)}")
+            else:
+                print(f"🔍 Admin data (dict): {admin}")
+            
             # Handle different database structures
             if MYSQL_AVAILABLE:
-                admin_id, admin_username, admin_password, admin_role = admin['id'], admin['username'], admin['password'], admin['role']
+                # Handle MySQL data formats
+                if isinstance(admin, dict):
+                    # Direct dictionary format
+                    admin_id, admin_username, admin_password, admin_role = admin['id'], admin['username'], admin['password'], admin['role']
+                elif isinstance(admin, list) and len(admin) > 0 and isinstance(admin[0], dict):
+                    # List containing dictionary format (MySQL fetchone result)
+                    admin_dict = admin[0]
+                    admin_id, admin_username, admin_password, admin_role = admin_dict['id'], admin_dict['username'], admin_dict['password'], admin_dict['role']
+                else:
+                    # Fallback to simple list format with safety checks
+                    if len(admin) < 3:
+                        print(f"❌ Invalid admin data format: {admin}")
+                        error = "Database error - invalid user data"
+                        return render_template('login.html', error=error)
+                    admin_id, admin_username, admin_password = admin[0], admin[1], admin[2]
+                    admin_role = admin[3] if len(admin) > 3 else 'admin'
             else:
+                # SQLite format with safety checks
+                if len(admin) < 3:
+                    print(f"❌ Invalid admin data format: {admin}")
+                    error = "Database error - invalid user data"
+                    return render_template('login.html', error=error)
                 admin_id, admin_username, admin_password = admin[0], admin[1], admin[2]
                 admin_role = admin[3] if len(admin) > 3 else 'admin'
             
@@ -285,12 +318,8 @@ def login():
                 session['admin_role'] = admin_role
                 session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
-                # Update last login time (MySQL only)
-                if MYSQL_AVAILABLE:
-                    execute_db_query(
-                        "UPDATE admin SET last_login = NOW() WHERE id = %s",
-                        (admin_id,)
-                    )
+                # Note: last_login column not available in current schema
+                # Future enhancement: Add last_login column to admin table
                 
                 # Log successful login
                 logging.info(f'Successful login for user: {admin_username} from IP: {request.remote_addr}')
@@ -313,7 +342,7 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/admin/dashboard')
-@role_required('superadmin')
+@role_required('admin', 'superadmin')
 def admin_dashboard():
     """Advanced admin dashboard with system monitoring"""
     return render_template('admin_dashboard.html')
@@ -2089,6 +2118,53 @@ def create_alert():
         'created_at': datetime.now().isoformat()
     })
 
+@app.route('/api/admin/dashboard-data')
+@login_required
+def get_admin_dashboard_data():
+    """Get admin dashboard data"""
+    try:
+        # Calculate uptime (simplified)
+        uptime = "24h 15m"
+        
+        # Get active users count
+        active_users = 1  # Current logged in user
+        
+        # Get failed login attempts (mock data)
+        failed_logins = 0
+        
+        # Get suspicious activities (mock data)
+        suspicious_activities = 0
+        
+        # Get recent activities
+        recent_activities = [
+            {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'user': session.get('admin_username', 'admin'),
+                'action': 'Dashboard Access',
+                'status': 'success'
+            },
+            {
+                'timestamp': (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S'),
+                'user': session.get('admin_username', 'admin'),
+                'action': 'System Login',
+                'status': 'success'
+            }
+        ]
+        
+        return jsonify({
+            'uptime': uptime,
+            'activeUsers': active_users,
+            'failedLogins': failed_logins,
+            'suspiciousActivities': suspicious_activities,
+            'recentActivities': recent_activities
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to fetch dashboard data',
+            'message': str(e)
+        }), 500
+
 # Advanced Features Routes
 @app.route('/profile')
 @login_required
@@ -2104,10 +2180,20 @@ def user_profile():
                 (current_username,),
                 fetch_one=True
             )
-            # Convert MySQL result to tuple format for compatibility
+            # Handle MySQL data format (list containing dictionary)
             if user_data:
-                user_data = (user_data['username'], user_data['first_name'], user_data['last_name'], 
-                           user_data['email'], user_data['id_number'], user_data['role'], user_data.get('department', ''))
+                if isinstance(user_data, list) and len(user_data) > 0 and isinstance(user_data[0], dict):
+                    # Extract dictionary from list
+                    user_dict = user_data[0]
+                    user_data = (user_dict['username'], user_dict['first_name'], user_dict['last_name'], 
+                               user_dict['email'], user_dict['id_number'], user_dict['role'], user_dict.get('department', ''))
+                elif isinstance(user_data, dict):
+                    # Direct dictionary format
+                    user_data = (user_data['username'], user_data['first_name'], user_data['last_name'], 
+                               user_data['email'], user_data['id_number'], user_data['role'], user_data.get('department', ''))
+                else:
+                    # Already in tuple/list format
+                    pass
         else:
             user_data = execute_db_query(
                 "SELECT username, first_name, last_name, email, id_number, role, department FROM admin WHERE username = ?",
@@ -2595,7 +2681,12 @@ def multi_fingerprint_test():
     return render_template('multi_fingerprint_test.html')
 
 if __name__ == '__main__':
-    # Production-ready server configuration
+    # Railway deployment configuration
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    
+    # Ensure production settings for Railway
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        debug = False
+        
     app.run(host='0.0.0.0', port=port, debug=debug)

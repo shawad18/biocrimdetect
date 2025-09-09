@@ -136,20 +136,20 @@ def create_default_admin_users():
         # Create default admin users
         admin_users = [
             {
-                'username': 'admin',
-                'password': 'admin123',
+                'username': 'shawad',
+                'password': 'Sunee@18',
                 'role': 'admin',
-                'email': 'admin@biometric-system.local',
-                'first_name': 'System',
+                'email': 'shawad@biometric-system.local',
+                'first_name': 'Shawad',
                 'last_name': 'Administrator'
             },
             {
-                'username': 'superadmin',
-                'password': 'superadmin123',
+                'username': 'SHAMSU',
+                'password': '#Sunainah@18',
                 'role': 'superadmin',
-                'email': 'superadmin@biometric-system.local',
-                'first_name': 'Super',
-                'last_name': 'Administrator'
+                'email': 'shamsu@biometric-system.local',
+                'first_name': 'Shamsu',
+                'last_name': 'Super Administrator'
             }
         ]
         
