@@ -9,23 +9,45 @@ from mysql.connector import Error
 import os
 from contextlib import contextmanager
 import logging
+from urllib.parse import urlparse
 
 class MySQLConfig:
     """MySQL database configuration and connection management"""
     
     def __init__(self):
-        # Database configuration from environment variables or defaults
-        self.config = {
-            'host': os.environ.get('MYSQL_HOST', 'localhost'),
-            'port': int(os.environ.get('MYSQL_PORT', 3306)),
-            'database': os.environ.get('MYSQL_DATABASE', 'biometric_crime_detection'),
-            'user': os.environ.get('MYSQL_USER', 'root'),
-            'password': os.environ.get('MYSQL_PASSWORD', ''),
-            'charset': 'utf8mb4',
-            'collation': 'utf8mb4_unicode_ci',
-            'autocommit': True,
-            'raise_on_warnings': True
-        }
+        # Parse JAWSDB_URL if available (Heroku MySQL addon)
+        jawsdb_url = os.environ.get('JAWSDB_URL')
+        
+        if jawsdb_url:
+            # Parse the database URL
+            url = urlparse(jawsdb_url)
+            self.config = {
+                'host': url.hostname,
+                'port': url.port or 3306,
+                'database': url.path[1:],  # Remove leading slash
+                'user': url.username,
+                'password': url.password,
+                'charset': 'utf8mb4',
+                'collation': 'utf8mb4_unicode_ci',
+                'autocommit': True,
+                'raise_on_warnings': True,
+                'ssl_disabled': False
+            }
+            print(f"✅ Using JAWSDB MySQL: {url.hostname}")
+        else:
+            # Fallback to environment variables or defaults
+            self.config = {
+                'host': os.environ.get('MYSQL_HOST', 'localhost'),
+                'port': int(os.environ.get('MYSQL_PORT', 3306)),
+                'database': os.environ.get('MYSQL_DATABASE', 'biometric_crime_detection'),
+                'user': os.environ.get('MYSQL_USER', 'root'),
+                'password': os.environ.get('MYSQL_PASSWORD', ''),
+                'charset': 'utf8mb4',
+                'collation': 'utf8mb4_unicode_ci',
+                'autocommit': True,
+                'raise_on_warnings': True
+            }
+            print("✅ Using local MySQL configuration")
         
         # Connection pool configuration
         self.pool_config = {
