@@ -63,6 +63,37 @@
               z-index: 2;
           }
           
+          .scanner-nav {
+              display: flex;
+              justify-content: center;
+              gap: 15px;
+              margin-top: 15px;
+          }
+          
+          .nav-btn {
+              padding: 10px 20px;
+              background: rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              border-radius: 8px;
+              color: #ffffff;
+              text-decoration: none;
+              transition: all 0.3s ease;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+          }
+          
+          .nav-btn:hover {
+              background: rgba(0, 255, 136, 0.2);
+              border-color: #00ff88;
+              transform: translateY(-2px);
+          }
+          
+          .nav-btn.active {
+              background: rgba(0, 255, 136, 0.3);
+              border-color: #00ff88;
+          }
+          
           .header p {
               font-size: 1.1rem;
               color: #b0e0e6;
@@ -1138,8 +1169,16 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-hand-paper"></i> Live 10-Finger Biometric Scanner</h1>
+            <h1><i class="fas fa-hand-paper"></i> Live Biometric Scanner</h1>
             <p>Advanced multi-finger biometric identification system for comprehensive suspect matching</p>
+            <div class="scanner-nav">
+                <a href="/match_fingerprint/live" class="nav-btn active">
+                    <i class="fas fa-fingerprint"></i> Single Finger Scanner
+                </a>
+                <a href="/match_fingerprint/ten_finger" class="nav-btn">
+                    <i class="fas fa-hand"></i> 10-Finger Hardware Scanner
+                </a>
+            </div>
         </div>
         
         <div class="main-content">

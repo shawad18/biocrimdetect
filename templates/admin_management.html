@@ -180,6 +180,68 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        
+        /* Scroll Navigation Arrows */
+        .scroll-nav-container {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .scroll-nav-btn {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            border: 2px solid rgba(76, 201, 240, 0.5);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(76, 201, 240, 0.3);
+        }
+        
+        .scroll-nav-btn:hover {
+            background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+            border-color: rgba(76, 201, 240, 0.8);
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(76, 201, 240, 0.5);
+        }
+        
+        .scroll-nav-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .scroll-nav-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .admin-container {
+            position: relative;
+        }
+        
+        @media (max-width: 768px) {
+            .scroll-nav-container {
+                right: 15px;
+            }
+            
+            .scroll-nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -261,5 +323,125 @@
             </form>
         </div>
     </div>
+    
+    <!-- Scroll Navigation Arrows -->
+    <div class="scroll-nav-container" id="scrollNavContainer">
+        <div class="scroll-nav-btn" id="scrollUpBtn" onclick="scrollPage('up')">
+            <i class="fas fa-chevron-up"></i>
+        </div>
+        <div class="scroll-nav-btn" id="scrollDownBtn" onclick="scrollPage('down')">
+            <i class="fas fa-chevron-down"></i>
+        </div>
+    </div>
+    
+    <script>
+        // Scroll Navigation Functions
+        function scrollPage(direction) {
+            const scrollAmount = 150; // pixels to scroll per click
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            
+            let newScrollPosition;
+            if (direction === 'up') {
+                newScrollPosition = Math.max(0, currentScroll - scrollAmount);
+            } else {
+                newScrollPosition = Math.min(maxScroll, currentScroll + scrollAmount);
+            }
+            
+            // Smooth scroll animation
+            window.scrollTo({
+                top: newScrollPosition,
+                behavior: 'smooth'
+            });
+            
+            // Update button states after scroll
+            setTimeout(() => updateScrollButtonStates(), 300);
+        }
+        
+        function updateScrollButtonStates() {
+            const upBtn = document.getElementById('scrollUpBtn');
+            const downBtn = document.getElementById('scrollDownBtn');
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            
+            // Update up button state
+            if (currentScroll <= 0) {
+                upBtn.classList.add('disabled');
+            } else {
+                upBtn.classList.remove('disabled');
+            }
+            
+            // Update down button state
+            if (currentScroll >= maxScroll - 5) { // 5px tolerance
+                downBtn.classList.add('disabled');
+            } else {
+                downBtn.classList.remove('disabled');
+            }
+        }
+        
+        // Initialize scroll button states on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateScrollButtonStates();
+            
+            // Add scroll event listener to update button states
+            window.addEventListener('scroll', function() {
+                updateScrollButtonStates();
+            });
+            
+            // Show/hide scroll navigation based on page height
+            function toggleScrollNavigation() {
+                const scrollNavContainer = document.getElementById('scrollNavContainer');
+                const pageHeight = document.documentElement.scrollHeight;
+                const windowHeight = window.innerHeight;
+                
+                if (pageHeight > windowHeight + 100) { // Show if page is scrollable
+                    scrollNavContainer.style.display = 'flex';
+                } else {
+                    scrollNavContainer.style.display = 'none';
+                }
+            }
+            
+            toggleScrollNavigation();
+            window.addEventListener('resize', toggleScrollNavigation);
+        });
+        
+        // Flash message handling
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display flash messages if any
+            const flashMessages = [
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            {category: '{{ category }}', message: '{{ message|safe }}'},
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            ];
+            
+            const flashContainer = document.getElementById('flash-messages');
+            flashMessages.forEach(function(flash) {
+                if (flash.category && flash.message) {
+                    const flashDiv = document.createElement('div');
+                    flashDiv.className = 'flash-message flash-' + flash.category;
+                    
+                    let icon = 'fas fa-info-circle';
+                    if (flash.category === 'success') icon = 'fas fa-check-circle';
+                    else if (flash.category === 'error') icon = 'fas fa-exclamation-triangle';
+                    else if (flash.category === 'warning') icon = 'fas fa-exclamation-circle';
+                    
+                    flashDiv.innerHTML = '<i class="' + icon + '"></i>' + flash.message;
+                    flashContainer.appendChild(flashDiv);
+                    
+                    // Auto-hide flash messages after 5 seconds
+                    setTimeout(function() {
+                        flashDiv.style.opacity = '0';
+                        setTimeout(function() {
+                            flashDiv.remove();
+                        }, 300);
+                    }, 5000);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

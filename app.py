@@ -1,10 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, send_from_directory
-import os, sqlite3, time
+import os, time
 import bcrypt
 import logging
 from datetime import datetime
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
+
+# MySQL database imports
+try:
+    from database.mysql_config import mysql_config, get_mysql_connection, execute_mysql_query
+    MYSQL_AVAILABLE = True
+    print("✅ MySQL configuration loaded successfully")
+except ImportError as e:
+    MYSQL_AVAILABLE = False
+    print(f"⚠️ MySQL not available, falling back to SQLite: {e}")
+    import sqlite3
 
 # Try to import cv2, but handle the case where it's not available (like on Heroku)
 try:
@@ -90,14 +100,33 @@ app.config['FP_UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads', 'fingerprint_
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['FP_UPLOAD_FOLDER'], exist_ok=True)
 
-DB_PATH = os.path.join(BASE_DIR, 'database', 'criminals.db')
-
-def init_db_if_missing():
-    if not os.path.exists(DB_PATH):
-        from database import init_db
-        init_db.create_db()
-
-init_db_if_missing()
+# Database configuration
+if MYSQL_AVAILABLE:
+    # MySQL database initialization
+    def init_mysql_db():
+        try:
+            from database.init_mysql import initialize_mysql_database
+            sqlite_path = os.path.join(BASE_DIR, 'database', 'criminals.db')
+            success = initialize_mysql_database(sqlite_path if os.path.exists(sqlite_path) else None)
+            if success:
+                print("✅ MySQL database initialized successfully")
+            else:
+                print("❌ MySQL database initialization failed")
+        except Exception as e:
+            print(f"❌ MySQL initialization error: {e}")
+    
+    # Initialize MySQL database
+    init_mysql_db()
+else:
+    # Fallback to SQLite
+    DB_PATH = os.path.join(BASE_DIR, 'database', 'criminals.db')
+    
+    def init_db_if_missing():
+        if not os.path.exists(DB_PATH):
+            from database import init_db
+            init_db.create_db()
+    
+    init_db_if_missing()
 
 # Configure static file serving
 @app.route('/css/<path:filename>')
@@ -177,6 +206,47 @@ def home():
 def original_home():
     return render_template('index.html', admin_role=session.get('admin_role', 'admin'), has_permission=has_permission)
 
+@app.route('/navigation_demo')
+@login_required
+def navigation_demo():
+    """Demo page for hamburger navigation system"""
+    return render_template('navigation_demo.html')
+
+# Database helper functions
+def get_db_connection():
+    """Get database connection (MySQL or SQLite)"""
+    if MYSQL_AVAILABLE:
+        return get_mysql_connection()
+    else:
+        return sqlite3.connect(DB_PATH)
+
+def execute_db_query(query, params=None, fetch_one=False, fetch_all=False):
+    """Execute database query with automatic MySQL/SQLite handling"""
+    if MYSQL_AVAILABLE:
+        if fetch_one:
+            return execute_mysql_query(query, params, fetch=True)
+        elif fetch_all:
+            result = execute_mysql_query(query, params, fetch=True)
+            return result if isinstance(result, list) else [result] if result else []
+        else:
+            return execute_mysql_query(query, params, fetch=False)
+    else:
+        # SQLite fallback
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(query, params or ())
+        
+        if fetch_one:
+            result = cursor.fetchone()
+        elif fetch_all:
+            result = cursor.fetchall()
+        else:
+            conn.commit()
+            result = cursor.rowcount
+        
+        conn.close()
+        return result
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -184,26 +254,53 @@ def login():
         username = request.form['username']
         password = request.form['password'].encode('utf-8')
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM admin WHERE username = ?", (username,))
-        admin = cursor.fetchone()
-        conn.close()
+        if MYSQL_AVAILABLE:
+            # MySQL query
+            admin = execute_db_query(
+                "SELECT id, username, password, role FROM admin WHERE username = %s",
+                (username,),
+                fetch_one=True
+            )
+        else:
+            # SQLite query
+            admin = execute_db_query(
+                "SELECT * FROM admin WHERE username = ?",
+                (username,),
+                fetch_one=True
+            )
 
-        if admin and bcrypt.checkpw(password, admin[2]):
-            session.permanent = True
-            session['admin_logged_in'] = True
-            session['admin_username'] = admin[1]
-            session['admin_role'] = admin[3] if len(admin) > 3 else 'admin'  # Default to admin if role not in DB
-            session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if admin:
+            # Handle different database structures
+            if MYSQL_AVAILABLE:
+                admin_id, admin_username, admin_password, admin_role = admin['id'], admin['username'], admin['password'], admin['role']
+            else:
+                admin_id, admin_username, admin_password = admin[0], admin[1], admin[2]
+                admin_role = admin[3] if len(admin) > 3 else 'admin'
             
-            # Log successful login
-            logging.info(f'Successful login for user: {admin[1]} from IP: {request.remote_addr}')
-            
-            # Personalized welcome message
-            flash(f"Welcome Back {username}, you have successfully logged in!", "success")
-            
-            return redirect(url_for('original_home'))
+            if bcrypt.checkpw(password, admin_password):
+                session.permanent = True
+                session['admin_logged_in'] = True
+                session['admin_id'] = admin_id
+                session['admin_username'] = admin_username
+                session['admin_role'] = admin_role
+                session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Update last login time (MySQL only)
+                if MYSQL_AVAILABLE:
+                    execute_db_query(
+                        "UPDATE admin SET last_login = NOW() WHERE id = %s",
+                        (admin_id,)
+                    )
+                
+                # Log successful login
+                logging.info(f'Successful login for user: {admin_username} from IP: {request.remote_addr}')
+                
+                # Personalized welcome message
+                flash(f"Welcome Back {username}, you have successfully logged in!", "success")
+                
+                return redirect(url_for('original_home'))
+            else:
+                error = "Invalid credentials"
         else:
             error = "Invalid credentials"
     return render_template('login.html', error=error)
@@ -225,32 +322,46 @@ def admin_dashboard():
 @role_required('superadmin')
 def manage_admins():
     """Enhanced user management interface"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Get all admins with their complete profile information
-    cursor.execute("""
-        SELECT a.id, a.username, a.password, a.role, a.first_name, a.last_name, a.email, a.id_number,
-            (SELECT MAX(timestamp) FROM security_log 
-             WHERE user = a.username AND action = 'login') as last_login,
-            (SELECT COUNT(*) FROM security_log 
-             WHERE user = a.username 
-             AND action = 'failed_login' 
-             AND timestamp > datetime('now', '-1 hour')) as failed_attempts
-        FROM admin a
-    """)
-    admins = cursor.fetchall()
-    conn.close()
+    if MYSQL_AVAILABLE:
+        admins = execute_db_query("""
+            SELECT a.id, a.username, a.password, a.role, a.first_name, a.last_name, a.email, a.id_number,
+                (SELECT MAX(timestamp) FROM security_log 
+                 WHERE user = a.username AND action = 'login') as last_login,
+                (SELECT COUNT(*) FROM security_log 
+                 WHERE user = a.username 
+                 AND action = 'failed_login' 
+                 AND timestamp > NOW() - INTERVAL 1 HOUR) as failed_attempts
+            FROM admin a
+        """, fetch_all=True)
+        # Convert MySQL result to tuple format for template compatibility
+        if admins:
+            admins = [tuple(row.values()) if isinstance(row, dict) else row for row in admins]
+        else:
+            admins = []
+    else:
+        admins = execute_db_query("""
+            SELECT a.id, a.username, a.password, a.role, a.first_name, a.last_name, a.email, a.id_number,
+                (SELECT MAX(timestamp) FROM security_log 
+                 WHERE user = a.username AND action = 'login') as last_login,
+                (SELECT COUNT(*) FROM security_log 
+                 WHERE user = a.username 
+                 AND action = 'failed_login' 
+                 AND timestamp > datetime('now', '-1 hour')) as failed_attempts
+            FROM admin a
+        """, fetch_all=True)
+        admins = admins if admins else []
     
     return render_template('admin_management.html', admins=admins)
 
 def generate_id_number():
     """Generate auto-incremented ID number"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM admin")
-    count = cursor.fetchone()[0]
-    conn.close()
+    if MYSQL_AVAILABLE:
+        result = execute_db_query("SELECT COUNT(*) FROM admin", fetch_one=True)
+        count = result['COUNT(*)'] if isinstance(result, dict) else result[0]
+    else:
+        result = execute_db_query("SELECT COUNT(*) FROM admin", fetch_one=True)
+        count = result[0] if result else 0
     return f"BCD{str(count + 1).zfill(3)}"
 
 @app.route('/admin/add', methods=['POST'])
@@ -277,20 +388,23 @@ def add_admin():
     # Generate ID number
     id_number = generate_id_number()
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute("""
-            INSERT INTO admin (username, password, role, first_name, last_name, email, id_number) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (username, hashed_pw, role, first_name, last_name, email, id_number))
-        conn.commit()
+        if MYSQL_AVAILABLE:
+            execute_db_query("""
+                INSERT INTO admin (username, password, role, first_name, last_name, email, id_number) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (username, hashed_pw, role, first_name, last_name, email, id_number))
+        else:
+            execute_db_query("""
+                INSERT INTO admin (username, password, role, first_name, last_name, email, id_number) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (username, hashed_pw, role, first_name, last_name, email, id_number))
         flash(f"Admin user '{username}' created successfully with ID: {id_number}", "success")
-    except sqlite3.IntegrityError:
-        flash(f"Username '{username}' already exists", "error")
-    finally:
-        conn.close()
+    except Exception as e:
+        if "Duplicate entry" in str(e) or "UNIQUE constraint failed" in str(e):
+            flash(f"Username '{username}' already exists", "error")
+        else:
+            flash(f"Error creating admin user: {str(e)}", "error")
     
     return redirect(url_for('manage_admins'))
 
@@ -485,24 +599,31 @@ def register_criminal():
 def view_criminals():
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth, active
-        FROM criminals
-        ORDER BY id DESC
-    """)
-    data = cursor.fetchall()
-    conn.close()
+    
+    # Get criminals data using database helper functions
+    if MYSQL_AVAILABLE:
+        data = execute_db_query(
+            "SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth, active FROM criminals ORDER BY id DESC",
+            fetch_all=True
+        )
+        # Convert MySQL result to tuple format for template compatibility
+        if data:
+            data = [tuple(row.values()) if isinstance(row, dict) else row for row in data]
+        else:
+            data = []
+    else:
+        data = execute_db_query(
+            "SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name, suspect_photo, date_of_birth, active FROM criminals ORDER BY id DESC",
+            fetch_all=True
+        )
+        data = data if data else []
+    
     return render_template('view_criminals.html', criminals=data)
 
 @app.route('/edit_criminal/<int:criminal_id>', methods=['GET', 'POST'])
 def edit_criminal(criminal_id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
     
     if request.method == 'POST':
         # Update criminal record
@@ -513,21 +634,36 @@ def edit_criminal(criminal_id):
         last_name = request.form.get('last_name')
         active = request.form.get('active', '1')  # Default to active
         
-        cursor.execute("""
-            UPDATE criminals 
-            SET name=?, crime=?, age=?, first_name=?, last_name=?, active=?
-            WHERE id=?
-        """, (name, crime, age, first_name, last_name, active, criminal_id))
+        if MYSQL_AVAILABLE:
+            execute_db_query(
+                "UPDATE criminals SET name=%s, crime=%s, age=%s, first_name=%s, last_name=%s, active=%s WHERE id=%s",
+                (name, crime, age, first_name, last_name, active, criminal_id)
+            )
+        else:
+            execute_db_query(
+                "UPDATE criminals SET name=?, crime=?, age=?, first_name=?, last_name=?, active=? WHERE id=?",
+                (name, crime, age, first_name, last_name, active, criminal_id)
+            )
         
-        conn.commit()
-        conn.close()
         flash('Criminal record updated successfully!', 'success')
         return redirect(url_for('view_criminals'))
     
     # GET request - show edit form
-    cursor.execute("SELECT * FROM criminals WHERE id=?", (criminal_id,))
-    criminal = cursor.fetchone()
-    conn.close()
+    if MYSQL_AVAILABLE:
+        criminal = execute_db_query(
+            "SELECT * FROM criminals WHERE id=%s",
+            (criminal_id,),
+            fetch_one=True
+        )
+        # Convert MySQL result to tuple format for template compatibility
+        if criminal and isinstance(criminal, dict):
+            criminal = tuple(criminal.values())
+    else:
+        criminal = execute_db_query(
+            "SELECT * FROM criminals WHERE id=?",
+            (criminal_id,),
+            fetch_one=True
+        )
     
     if not criminal:
         flash('Criminal not found!', 'error')
@@ -540,13 +676,17 @@ def delete_criminal(criminal_id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('login'))
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # Delete the criminal record
-    cursor.execute("DELETE FROM criminals WHERE id=?", (criminal_id,))
-    conn.commit()
-    conn.close()
+    # Delete the criminal record using database helper functions
+    if MYSQL_AVAILABLE:
+        execute_db_query(
+            "DELETE FROM criminals WHERE id=%s",
+            (criminal_id,)
+        )
+    else:
+        execute_db_query(
+            "DELETE FROM criminals WHERE id=?",
+            (criminal_id,)
+        )
     
     flash('Criminal record deleted successfully!', 'success')
     return redirect(url_for('view_criminals'))
@@ -1007,51 +1147,110 @@ def get_fingerprint_results():
 
 @app.route('/match_fingerprint/process_live', methods=['POST'])
 def process_live_fingerprint_verification():
-    """Process live fingerprint verification using advanced scanner"""
+    """Process live fingerprint verification using hardware biometric scanner"""
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        # Import the advanced fingerprint scanner
-        from fingerprints.advanced_fingerprint_scanner import perform_live_fingerprint_scan
+        # Get request parameters
+        data = request.get_json() if request.is_json else {}
+        finger_position = data.get('finger_position', 'unknown')
+        quality_level = data.get('quality', 'high')
+        scan_mode = data.get('scan_mode', 'single')
         
-        # Get scan quality from request (optional)
-        quality_level = request.json.get('quality', 'good') if request.is_json else 'good'
+        # Check for hardware validation request
+        if finger_position == 'hardware_check':
+            from fingerprints.hardware_biometric_scanner import HardwareBiometricScanner
+            scanner = HardwareBiometricScanner()
+            
+            if not scanner.hardware_detected:
+                return jsonify({
+                    'success': False,
+                    'error': 'No fingerprint scanner hardware detected',
+                    'error_code': 'HARDWARE_NOT_FOUND',
+                    'message': 'Please connect a compatible fingerprint scanner device',
+                    'supported_devices': [
+                        'Digital Persona U.are.U 4500',
+                        'Suprema BioMini Plus 2', 
+                        'SecuGen Hamster Pro 20',
+                        'Futronic FS88H',
+                        'HID DigitalPersona 4500'
+                    ],
+                    'scanner_type': scanner.scanner_type,
+                    'simulation_mode': True
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'hardware_detected': True,
+                    'scanner_type': scanner.scanner_type,
+                    'message': f'{scanner.scanner_type} scanner ready'
+                })
         
-        # Perform advanced fingerprint scan
-        scan_result = perform_live_fingerprint_scan(quality_level)
+        # Import the enhanced hardware biometric scanner
+        from fingerprints.hardware_biometric_scanner import perform_hardware_biometric_scan
         
-        # Format result for frontend
-        result = {
-            'success': True,
-            'match_found': scan_result.get('match_found', False),
-            'suspect_name': scan_result.get('suspect_name'),
-            'confidence': scan_result.get('confidence_score', 0),
-            'processing_time': scan_result.get('processing_time', 0),
-            'scan_quality': scan_result.get('quality_score', 0) * 100,
-            'minutiae_detected': scan_result.get('minutiae_detected', 0),
-            'pattern_type': scan_result.get('pattern_type', 'Unknown'),
-            'match_quality': scan_result.get('match_quality', 'No Match'),
-            'case_id': scan_result.get('case_id'),
-            'finger_position': scan_result.get('finger_position'),
-            'verification_level': scan_result.get('verification_level', 'LOW'),
-            'minutiae_matches': scan_result.get('minutiae_matches', 0),
-            'database_records_checked': scan_result.get('database_records_checked', 0),
-            'scanner_algorithm': scan_result.get('search_algorithm', 'Advanced Scanner'),
-            'timestamp': scan_result.get('timestamp')
-        }
+        # Perform hardware biometric scan
+        scan_result = perform_hardware_biometric_scan(quality_level, scan_mode)
         
-        # Add additional details if match found
-        if result['match_found']:
-            result['enrollment_date'] = scan_result.get('enrollment_date')
-            result['pattern_match'] = scan_result.get('pattern_match')
+        # Handle different scan modes
+        if scan_mode == 'ten_finger':
+            # Ten finger scan results
+            result = {
+                'success': True,
+                'scan_mode': 'ten_finger',
+                'total_fingers_scanned': scan_result.get('total_fingers_scanned', 0),
+                'total_matches_found': scan_result.get('total_matches_found', 0),
+                'scan_results': scan_result.get('scan_results', []),
+                'scan_complete': scan_result.get('scan_complete', False),
+                'timestamp': scan_result.get('scan_timestamp')
+            }
+        else:
+            # Single finger scan results
+            if scan_result.get('scan_successful'):
+                match_result = scan_result.get('match_result', {})
+                scan_data = scan_result.get('scan_data', {})
+                
+                result = {
+                    'success': True,
+                    'scan_mode': 'single',
+                    'match_found': match_result.get('status') == 'match_found',
+                    'criminal_name': match_result.get('criminal_name'),
+                    'confidence': match_result.get('confidence', 0),
+                    'crime': match_result.get('crime'),
+                    'case_id': match_result.get('case_id'),
+                    'match_quality': match_result.get('match_quality', 'No Match'),
+                    'verification_level': match_result.get('verification_level', 'LOW'),
+                    'minutiae_matched': match_result.get('minutiae_matched', 0),
+                    'scan_quality': match_result.get('scan_quality', 0),
+                    'scanner_type': match_result.get('scanner_type', scan_data.get('scanner_type', 'Unknown')),
+                    'processing_time': match_result.get('processing_time', 0),
+                    'database_records_checked': match_result.get('database_records_checked', 0),
+                    'algorithm_version': match_result.get('algorithm_version', 'Hardware Scanner v3.0'),
+                    'timestamp': match_result.get('match_timestamp'),
+                    'finger_position': scan_data.get('finger_position', finger_position),
+                    'minutiae_count': scan_data.get('minutiae_count', 0),
+                    'live_finger_detected': scan_data.get('live_finger_detected', False)
+                }
+                
+                # Add error details if no match
+                if not result['match_found']:
+                    result['message'] = match_result.get('message', 'No criminal match found')
+                    result['highest_partial_score'] = match_result.get('highest_partial_score', 0)
+            else:
+                result = {
+                    'success': False,
+                    'error': scan_result.get('error', 'Scan failed'),
+                    'scanner_info': scan_result.get('scanner_info', {})
+                }
         
         return jsonify(result)
     
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': f'Scanner error: {str(e)}'
+            'error': f'Hardware scanner error: {str(e)}',
+            'error_type': 'SYSTEM_ERROR'
         }), 500
 
 @app.route('/dashboard')
@@ -1062,27 +1261,41 @@ def cybersecurity_dashboard():
         flash('Access denied. You do not have permission to view the dashboard.', 'error')
         return redirect(url_for('home'))
     
-    # Get dashboard data
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    # Get dashboard data using database helper functions
     
     # Get total criminals count
-    cursor.execute("SELECT COUNT(*) FROM criminals")
-    total_criminals = cursor.fetchone()[0]
+    if MYSQL_AVAILABLE:
+        total_result = execute_db_query("SELECT COUNT(*) as count FROM criminals", fetch_one=True)
+        total_criminals = total_result['count'] if total_result else 0
+    else:
+        total_result = execute_db_query("SELECT COUNT(*) FROM criminals", fetch_one=True)
+        total_criminals = total_result[0] if total_result else 0
     
     # Get crime statistics
-    cursor.execute("SELECT crime, COUNT(*) FROM criminals GROUP BY crime")
-    crime_stats = cursor.fetchall()
+    if MYSQL_AVAILABLE:
+        crime_stats_result = execute_db_query("SELECT crime, COUNT(*) as count FROM criminals GROUP BY crime", fetch_all=True)
+        crime_stats = [(row['crime'], row['count']) for row in crime_stats_result] if crime_stats_result else []
+    else:
+        crime_stats = execute_db_query("SELECT crime, COUNT(*) FROM criminals GROUP BY crime", fetch_all=True)
+        crime_stats = crime_stats if crime_stats else []
     
     # Get recent registrations (last 30 days) - handle missing date_registered column
     try:
-        cursor.execute("SELECT COUNT(*) FROM criminals WHERE date_registered >= date('now', '-30 days')")
-        recent_registrations = cursor.fetchone()[0]
-    except sqlite3.OperationalError:
-        # Column doesn't exist, use total count as fallback
+        if MYSQL_AVAILABLE:
+            recent_result = execute_db_query(
+                "SELECT COUNT(*) as count FROM criminals WHERE date_registered >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
+                fetch_one=True
+            )
+            recent_registrations = recent_result['count'] if recent_result else 0
+        else:
+            recent_result = execute_db_query(
+                "SELECT COUNT(*) FROM criminals WHERE date_registered >= date('now', '-30 days')",
+                fetch_one=True
+            )
+            recent_registrations = recent_result[0] if recent_result else 0
+    except Exception:
+        # Column doesn't exist or other error, use total count as fallback
         recent_registrations = total_criminals
-    
-    conn.close()
     
     dashboard_data = {
         'total_criminals': total_criminals,
@@ -1098,12 +1311,19 @@ def get_threat_data():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Get crime types from database to generate realistic threats
-    cursor.execute("SELECT crime, COUNT(*) FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC")
-    crime_data = cursor.fetchall()
+    if MYSQL_AVAILABLE:
+        crime_data = execute_db_query(
+            "SELECT crime, COUNT(*) as count FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC",
+            fetch_all=True
+        )
+        # Convert MySQL result to tuple format for compatibility
+        crime_data = [(row['crime'], row['count']) for row in crime_data] if crime_data else []
+    else:
+        crime_data = execute_db_query(
+            "SELECT crime, COUNT(*) FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC",
+            fetch_all=True
+        )
     
     # Generate realistic threat data based on actual crimes in database
     import random
@@ -1189,7 +1409,6 @@ def get_threat_data():
                 'case_count': 0
             })
     
-    conn.close()
     return jsonify({'threats': threats, 'database_integrated': True})
 
 @app.route('/api/dashboard/cases')
@@ -1197,19 +1416,23 @@ def get_case_data():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Get total suspects from criminals table
-    cursor.execute("SELECT COUNT(*) FROM criminals")
-    total_suspects = cursor.fetchone()[0]
+    if MYSQL_AVAILABLE:
+        total_result = execute_db_query("SELECT COUNT(*) as count FROM criminals", fetch_one=True)
+        total_suspects = total_result['count'] if total_result else 0
+    else:
+        total_result = execute_db_query("SELECT COUNT(*) FROM criminals", fetch_one=True)
+        total_suspects = total_result[0] if total_result else 0
     
     # Get crime type distribution from actual database
-    cursor.execute("SELECT crime, COUNT(*) FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC")
-    crime_stats = cursor.fetchall()
+    if MYSQL_AVAILABLE:
+        crime_stats_result = execute_db_query("SELECT crime, COUNT(*) as count FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC", fetch_all=True)
+        crime_stats = [(row['crime'], row['count']) for row in crime_stats_result] if crime_stats_result else []
+    else:
+        crime_stats = execute_db_query("SELECT crime, COUNT(*) FROM criminals GROUP BY crime ORDER BY COUNT(*) DESC", fetch_all=True)
+        crime_stats = crime_stats if crime_stats else []
     
     # Get recent registrations (last 30 days) - simulate with random data based on total
-    cursor.execute("SELECT COUNT(*) FROM criminals WHERE datetime(id) > datetime('now', '-30 days')")
     recent_cases = max(1, int(total_suspects * 0.2))  # Assume 20% are recent
     
     # Calculate realistic case status distribution based on actual data
@@ -1224,8 +1447,22 @@ def get_case_data():
         
         # Calculate active threats based on high-priority crimes
         high_priority_crimes = ['Hacking', 'Ransomware', 'Identity Theft', 'Cyber Terrorism', 'Data Breach']
-        cursor.execute(f"SELECT COUNT(*) FROM criminals WHERE crime IN ({','.join(['?' for _ in high_priority_crimes])})", high_priority_crimes)
-        active_threats = cursor.fetchone()[0]
+        if MYSQL_AVAILABLE:
+            placeholders = ','.join(['%s' for _ in high_priority_crimes])
+            threats_result = execute_db_query(
+                f"SELECT COUNT(*) as count FROM criminals WHERE crime IN ({placeholders})",
+                high_priority_crimes,
+                fetch_one=True
+            )
+            active_threats = threats_result['count'] if threats_result else 0
+        else:
+            placeholders = ','.join(['?' for _ in high_priority_crimes])
+            threats_result = execute_db_query(
+                f"SELECT COUNT(*) FROM criminals WHERE crime IN ({placeholders})",
+                high_priority_crimes,
+                fetch_one=True
+            )
+            active_threats = threats_result[0] if threats_result else 0
         
         # If no high-priority crimes, simulate based on total
         if active_threats == 0:
@@ -1236,6 +1473,26 @@ def get_case_data():
     # Calculate completion rate
     completion_rate = round((resolved / total_suspects * 100) if total_suspects > 0 else 90, 1)
     
+    # Get age distribution from actual database
+    age_distribution = {'18-25': 0, '26-35': 0, '36-45': 0, '46+': 0}
+    if MYSQL_AVAILABLE:
+        age_result = execute_db_query("SELECT age FROM criminals WHERE age IS NOT NULL", fetch_all=True)
+        ages = [row['age'] for row in age_result] if age_result else []
+    else:
+        age_result = execute_db_query("SELECT age FROM criminals WHERE age IS NOT NULL", fetch_all=True)
+        ages = [row[0] for row in age_result] if age_result else []
+    
+    # Count ages by groups
+    for age in ages:
+        if 18 <= age <= 25:
+            age_distribution['18-25'] += 1
+        elif 26 <= age <= 35:
+            age_distribution['26-35'] += 1
+        elif 36 <= age <= 45:
+            age_distribution['36-45'] += 1
+        elif age > 45:
+            age_distribution['46+'] += 1
+    
     case_data = {
         'total_cases': total_suspects,  # Total cases = total suspects in database
         'total_suspects': total_suspects,
@@ -1245,11 +1502,11 @@ def get_case_data():
         'active_threats': active_threats,
         'completion_rate': completion_rate,
         'crime_distribution': dict(crime_stats),
+        'age_distribution': age_distribution,
         'recent_registrations': recent_cases,
         'database_integrated': True
     }
     
-    conn.close()
     return jsonify(case_data)
 
 @app.route('/api/dashboard/realtime-threats')
@@ -1840,16 +2097,23 @@ def user_profile():
     try:
         # Get current user data from database
         current_username = session.get('admin_username')
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT username, first_name, last_name, email, id_number, role
-            FROM admin WHERE username = ?
-        """, (current_username,))
-        
-        user_data = cursor.fetchone()
-        conn.close()
+        if MYSQL_AVAILABLE:
+            user_data = execute_db_query(
+                "SELECT username, first_name, last_name, email, id_number, role, department FROM admin WHERE username = %s",
+                (current_username,),
+                fetch_one=True
+            )
+            # Convert MySQL result to tuple format for compatibility
+            if user_data:
+                user_data = (user_data['username'], user_data['first_name'], user_data['last_name'], 
+                           user_data['email'], user_data['id_number'], user_data['role'], user_data.get('department', ''))
+        else:
+            user_data = execute_db_query(
+                "SELECT username, first_name, last_name, email, id_number, role, department FROM admin WHERE username = ?",
+                (current_username,),
+                fetch_one=True
+            )
         
         if user_data:
             profile_data = {
@@ -1859,7 +2123,8 @@ def user_profile():
                 'full_name': f"{user_data[1] or ''} {user_data[2] or ''}".strip() or user_data[0],
                 'email': user_data[3] or 'admin@cybersec.local',
                 'badge_number': user_data[4] or 'CS-2025-001',
-                'role': user_data[5] or 'admin'
+                'role': user_data[5] or 'admin',
+                'department': user_data[6] if len(user_data) > 6 else ''
             }
         else:
             # Fallback data if user not found
@@ -1943,27 +2208,25 @@ def update_profile():
             return redirect(url_for('login'))
         
         # Update database
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
         # Split full name into first and last name
         name_parts = full_name.split(' ', 1) if full_name else ['', '']
         first_name = name_parts[0] if len(name_parts) > 0 else ''
         last_name = name_parts[1] if len(name_parts) > 1 else ''
         
         # Update admin profile in database
-        cursor.execute("""
-            UPDATE admin 
-            SET first_name = ?, last_name = ?, email = ?, id_number = ?
-            WHERE username = ?
-        """, (first_name, last_name, email, badge_number, current_username))
+        if MYSQL_AVAILABLE:
+            execute_db_query(
+                "UPDATE admin SET first_name = %s, last_name = %s, email = %s, id_number = %s, department = %s WHERE username = %s",
+                (first_name, last_name, email, badge_number, department, current_username)
+            )
+        else:
+            execute_db_query(
+                "UPDATE admin SET first_name = ?, last_name = ?, email = ?, id_number = ?, department = ? WHERE username = ?",
+                (first_name, last_name, email, badge_number, department, current_username)
+            )
         
-        # Update session with new full name
-        if full_name:
-            session['admin_username'] = full_name
-        
-        conn.commit()
-        conn.close()
+        # Keep the original username in session (don't change it to full name)
+        # session['admin_username'] should remain as the username for login persistence
         
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('user_profile'))
@@ -1989,16 +2252,10 @@ def generate_report():
         priority = data.get('priority', 'all')
         
         # Fetch actual criminal data from database
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        # Get all criminals
-        cursor.execute("""
-            SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name
-            FROM criminals
-            ORDER BY id DESC
-        """)
-        criminals = cursor.fetchall()
+        criminals = execute_db_query(
+            "SELECT id, name, crime, face_image, fingerprint_image, age, case_id, first_name, last_name FROM criminals ORDER BY id DESC",
+            fetch_all=True
+        ) or []
         
         # Calculate statistics
         total_criminals = len(criminals)
@@ -2006,12 +2263,18 @@ def generate_report():
         age_groups = {'18-25': 0, '26-35': 0, '36-45': 0, '46+': 0}
         
         for criminal in criminals:
+            # Handle both MySQL (dict) and SQLite (tuple) formats
+            if isinstance(criminal, dict):
+                crime = criminal.get('crime') or 'Unknown'
+                age = criminal.get('age') or 0
+            else:
+                crime = criminal[2] or 'Unknown'
+                age = criminal[5] or 0
+            
             # Count crime types
-            crime = criminal[2] or 'Unknown'
             crime_types[crime] = crime_types.get(crime, 0) + 1
             
             # Count age groups
-            age = criminal[5] or 0
             if 18 <= age <= 25:
                 age_groups['18-25'] += 1
             elif 26 <= age <= 35:
@@ -2020,8 +2283,6 @@ def generate_report():
                 age_groups['36-45'] += 1
             elif age > 45:
                 age_groups['46+'] += 1
-        
-        conn.close()
         
         # Create report data with actual criminal database information
         report_data = {
@@ -2038,21 +2299,21 @@ def generate_report():
             },
             'statistics': {
                 'total_criminals': total_criminals,
-                'total_cases': len([c for c in criminals if c[6]]),  # criminals with case IDs
+                'total_cases': len([c for c in criminals if (c.get('case_id') if isinstance(c, dict) else c[6])]),
                 'crime_types_count': len(crime_types),
-                'avg_age': round(sum([c[5] for c in criminals if c[5]]) / max(1, len([c for c in criminals if c[5]])), 1)
-            },
-            'crime_breakdown': crime_types,
+                'avg_age': round(sum([(c.get('age') if isinstance(c, dict) else c[5]) for c in criminals if (c.get('age') if isinstance(c, dict) else c[5])]) / max(1, len([(c.get('age') if isinstance(c, dict) else c[5]) for c in criminals if (c.get('age') if isinstance(c, dict) else c[5])])), 1)
+             },
+             'crime_breakdown': crime_types,
             'age_distribution': age_groups,
             'criminals_list': [
                 {
-                    'id': c[0],
-                    'name': c[1],
-                    'crime': c[2],
-                    'age': c[5],
-                    'case_id': c[6],
-                    'first_name': c[7],
-                    'last_name': c[8]
+                    'id': c.get('id') if isinstance(c, dict) else c[0],
+                    'name': c.get('name') if isinstance(c, dict) else c[1],
+                    'crime': c.get('crime') if isinstance(c, dict) else c[2],
+                    'age': c.get('age') if isinstance(c, dict) else c[5],
+                    'case_id': c.get('case_id') if isinstance(c, dict) else c[6],
+                    'first_name': c.get('first_name') if isinstance(c, dict) else c[7],
+                    'last_name': c.get('last_name') if isinstance(c, dict) else c[8]
                 } for c in criminals
             ],
             'recommendations': [
@@ -2205,12 +2466,47 @@ def match_fingerprint_scan():
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Authentication required'}), 401
     
-    global fingerprint_scanner
-    if fingerprint_scanner is None:
-        return jsonify({'status': 'error', 'message': 'Scanner not initialized'})
+    try:
+        from fingerprints.hardware_biometric_scanner import HardwareBiometricScanner
+        scanner = HardwareBiometricScanner()
+        
+        if scanner.current_scan is None:
+            return jsonify({'status': 'error', 'message': 'No scan data available'})
+        
+        result = scanner.match_against_criminal_database()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Matching error: {str(e)}'})
+
+@app.route('/match_fingerprint/ten_finger')
+def ten_finger_scanner():
+    """Ten finger biometric scanner page"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+    return render_template('ten_finger_scanner.html')
+
+@app.route('/api/fingerprint/hardware_status')
+def get_hardware_status():
+    """Get fingerprint scanner hardware status"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
     
-    result = fingerprint_scanner.match_against_database()
-    return jsonify(result)
+    try:
+        from fingerprints.hardware_biometric_scanner import HardwareBiometricScanner
+        scanner = HardwareBiometricScanner()
+        status = scanner.get_scanner_status()
+        
+        return jsonify({
+            'success': True,
+            'hardware_detected': scanner.hardware_detected,
+            'scanner_type': scanner.scanner_type,
+            'status': status
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Status check failed: {str(e)}'
+        })
 
 @app.route('/api/fingerprint/stop_scan', methods=['POST'])
 def stop_fingerprint_scan():

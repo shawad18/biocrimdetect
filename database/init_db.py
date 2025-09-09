@@ -19,7 +19,15 @@ def create_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
             password BLOB NOT NULL,
-            role TEXT DEFAULT 'admin'
+            role TEXT DEFAULT 'admin',
+            email TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            department TEXT,
+            id_number TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP,
+            active BOOLEAN DEFAULT 1
         )
     ''')
 
