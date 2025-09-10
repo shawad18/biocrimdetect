@@ -123,12 +123,19 @@ class EnhancedFaceDetection:
         
         while retry_count < max_retries and not self.stopped:
             try:
-                # Try different camera indices
+                # Try different camera indices (prioritize index 0 - real camera found)
                 for camera_index in [0, 1, -1]:
                     cap = cv2.VideoCapture(camera_index)
                     if cap.isOpened():
-                        print(f"✅ Camera {camera_index} opened successfully")
-                        break
+                        # Test if we can actually read a frame
+                        ret, test_frame = cap.read()
+                        if ret and test_frame is not None:
+                            print(f"✅ Camera {camera_index} opened successfully")
+                            break
+                        else:
+                            print(f"⚠️ Camera {camera_index} opened but can't read frames")
+                            cap.release()
+                            continue
                     cap.release()
                     
                 if not cap or not cap.isOpened():

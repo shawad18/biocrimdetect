@@ -44,9 +44,27 @@ class SimpleCameraDetection:
     
     def update(self):
         """Keep looping infinitely until the thread is stopped"""
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("Error: Could not open webcam.")
+        # Try different camera indices (prioritize index 0 - real camera found)
+        cap = None
+        for camera_index in [0, 1, -1]:
+            cap = cv2.VideoCapture(camera_index)
+            if cap.isOpened():
+                # Test if we can actually read a frame
+                ret, test_frame = cap.read()
+                if ret and test_frame is not None:
+                    print(f"✅ Simple camera detection using camera {camera_index}")
+                    break
+                else:
+                    print(f"⚠️ Camera {camera_index} opened but can't read frames")
+                    cap.release()
+                    cap = None
+                    continue
+            if cap:
+                cap.release()
+                cap = None
+        
+        if not cap or not cap.isOpened():
+            print("Error: Could not open any webcam.")
             self.stopped = True
             return
         

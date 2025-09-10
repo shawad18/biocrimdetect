@@ -70,6 +70,12 @@ except ImportError as e:
                 from facial_recognition.mock_camera import MockCamera
                 MOCK_CAMERA_AVAILABLE = True
                 print("Mock camera loaded for hosted environment")
+            except ImportError:
+                MOCK_CAMERA_AVAILABLE = False
+                print("Mock camera import failed")
+                from facial_recognition.mock_camera import MockCamera
+                MOCK_CAMERA_AVAILABLE = True
+                print("Mock camera loaded for hosted environment")
         except ImportError:
             MOCK_CAMERA_AVAILABLE = False
             print("No camera modules available")
@@ -963,26 +969,81 @@ def start_stream():
         print(f"Error starting stream: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Failed to start camera: {str(e)}'})
 
-@app.route('/stop_stream')
+@app.route('/stop_stream', methods=['GET', 'POST'])
 def stop_stream():
+    """Stop the camera stream"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
+    
     global live_recognition
     try:
         if live_recognition is not None:
+            print("🛑 Stopping camera stream...")
             live_recognition.stop()
             live_recognition = None
+            print("✅ Camera stream stopped successfully")
+        else:
+            print("ℹ️ No active camera stream to stop")
+        
         return jsonify({'status': 'success', 'message': 'Camera stopped successfully'})
     except Exception as e:
-        print(f"Error stopping stream: {str(e)}")
-        return jsonify({'status': 'error', 'message': f'Failed to stop camera: {str(e)}'})
+        print(f"❌ Error stopping stream: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Failed to stop camera: {str(e)}'}), 500
 
 @app.route('/get_recognition_results')
 def get_recognition_results():
-    global live_recognition
-    if live_recognition is None:
-        return jsonify({'results': []})
+    """Get current face recognition results for frontend"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
     
-    results = live_recognition.get_recognition_results()
-    return jsonify({'results': results})
+    global live_recognition
+    
+    try:
+        if live_recognition is None:
+            return jsonify({
+                'status': 'inactive',
+                'results': [],
+                'statistics': {'total_detections': 0, 'successful_matches': 0}
+            })
+        
+        # Get detection results from enhanced system
+        results = []
+        statistics = {'total_detections': 0, 'successful_matches': 0}
+        
+        if hasattr(live_recognition, 'get_detection_results'):
+            detection_results = live_recognition.get_detection_results()
+            # Format for frontend compatibility
+            for result in detection_results[-3:]:  # Last 3 detections
+                match_result = result.get('match_result', {})
+                formatted_result = {
+                    'name': match_result.get('criminal_name', 'Unknown'),
+                    'location': result.get('location', [0, 0, 0, 0]),
+                    'match': match_result.get('match_found', False),
+                    'confidence': result.get('confidence', 0),
+                    'quality': result.get('quality', 0),
+                    'timestamp': result.get('timestamp', time.time())
+                }
+                results.append(formatted_result)
+        elif hasattr(live_recognition, 'get_recognition_results'):
+            # Fallback for other recognition systems
+            results = live_recognition.get_recognition_results()
+        
+        if hasattr(live_recognition, 'get_statistics'):
+            statistics = live_recognition.get_statistics()
+        
+        return jsonify({
+            'status': 'active',
+            'results': results,
+            'statistics': statistics
+        })
+        
+    except Exception as e:
+        print(f"Error getting recognition results: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'results': [],
+            'error': str(e)
+        }), 500
 
 @app.route('/match/process_live', methods=['POST'])
 def process_live_verification():

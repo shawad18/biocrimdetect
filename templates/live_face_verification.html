@@ -861,16 +861,53 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Set up video feed with error handling
-                            video.onerror = function() {
-                                console.error('Video feed error');
+                            // Set up comprehensive video feed event handling
+                            video.onerror = function(e) {
+                                console.error('Video feed error:', e);
                                 updateStatus('Error', 'Video feed failed');
-                                // Try to restart the video feed
+                                // Try to restart the video feed after a delay
+                                setTimeout(() => {
+                                    if (streamActive) {
+                                        console.log('Attempting to restart video feed...');
+                                        video.src = "/video_feed?t=" + new Date().getTime();
+                                    }
+                                }, 2000);
+                            };
+                            
+                            video.onloadstart = function() {
+                                console.log('Video feed loading started...');
+                                updateStatus('Online', 'Loading feed...');
+                            };
+                            
+                            video.onloadeddata = function() {
+                                console.log('Video feed data loaded successfully');
+                                updateStatus('Online', 'Active');
+                            };
+                            
+                            video.oncanplay = function() {
+                                console.log('Video feed ready to play');
+                                updateStatus('Online', 'Ready');
+                            };
+                            
+                            video.onplaying = function() {
+                                console.log('Video feed is playing');
+                                updateStatus('Online', 'Streaming');
+                            };
+                            
+                            video.onstalled = function() {
+                                console.warn('Video feed stalled, attempting recovery...');
+                                updateStatus('Warning', 'Feed stalled');
+                                // Try to recover by reloading the source
                                 setTimeout(() => {
                                     if (streamActive) {
                                         video.src = "/video_feed?t=" + new Date().getTime();
                                     }
-                                }, 2000);
+                                }, 1000);
+                            };
+                            
+                            video.onabort = function() {
+                                console.warn('Video feed aborted');
+                                updateStatus('Warning', 'Feed interrupted');
                             };
                             
                             video.onload = function() {
@@ -909,15 +946,35 @@
                                 }, 1000);
                             }, 1000);
                             
-                            // Set a timeout to check if video is working
-                            setTimeout(function() {
+                            // Set multiple timeouts to check if video is working
+                            let retryCount = 0;
+                            const maxRetries = 3;
+                            const checkVideoFeed = function() {
                                 if (video.naturalWidth === 0 && streamActive) {
-                                    console.error('Video feed timeout - trying to reload');
-                                    // Try reloading the video feed
-                                    video.src = "/video_feed?t=" + new Date().getTime();
-                                    updateStatus('Online', 'Retrying feed...');
+                                    retryCount++;
+                                    console.log(`Video feed check (${retryCount}/${maxRetries}) - waiting for feed...`);
+                                    
+                                    if (retryCount >= maxRetries) {
+                                        console.error('Video feed timeout - trying to reload');
+                                        // Try reloading the video feed with a new timestamp
+                                        video.src = "/video_feed?t=" + new Date().getTime();
+                                        updateStatus('Online', 'Retrying feed...');
+                                        
+                                        // Reset retry count and check again after reload
+                                        retryCount = 0;
+                                        setTimeout(checkVideoFeed, 3000);
+                                    } else {
+                                        // Check again in 2 seconds
+                                        setTimeout(checkVideoFeed, 2000);
+                                    }
+                                } else if (streamActive) {
+                                    console.log('Video feed active and working!');
+                                    updateStatus('Online', 'Active');
                                 }
-                            }, 3000);
+                            };
+                            
+                            // Start checking video feed after 5 seconds (give more time for initialization)
+                            setTimeout(checkVideoFeed, 5000);
                             
                         } else {
                             updateStatus('Error', data.message || 'Failed to start');
