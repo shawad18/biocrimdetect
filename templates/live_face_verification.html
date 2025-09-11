@@ -870,11 +870,14 @@
             
             // Start video stream with WebRTC
             startBtn.addEventListener('click', function() {
+                console.log('🔍 Start camera button clicked, streamActive:', streamActive);
                 if (!streamActive) {
                     // Update status
                     updateStatus('Initializing...', 'Starting up');
                     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
                     startBtn.disabled = true;
+                    
+                    console.log('🚀 Attempting to start WebRTC camera...');
                     
                     // Try WebRTC first (for hosted servers)
                     startWebRTCCamera()
@@ -882,16 +885,29 @@
                             console.log('✅ WebRTC camera started successfully');
                         })
                         .catch(error => {
-                            console.log('WebRTC failed, trying server camera:', error);
+                            console.error('❌ WebRTC failed:', error);
+                            console.log('🔄 Trying server camera fallback...');
                             // Fallback to server camera
                             startServerCamera();
                         });
+                } else {
+                    console.log('⚠️ Camera already active, stopping instead');
+                    stopCamera();
                 }
             });
             
             // WebRTC Camera Implementation
             async function startWebRTCCamera() {
                 try {
+                    console.log('📹 Checking WebRTC support...');
+                    
+                    // Check if WebRTC is supported
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('WebRTC not supported in this browser');
+                    }
+                    
+                    console.log('📹 Requesting camera access...');
+                    
                     // Request camera access
                     mediaStream = await navigator.mediaDevices.getUserMedia({
                         video: {
@@ -902,24 +918,50 @@
                         audio: false
                     });
                     
+                    console.log('📹 Camera access granted, setting up video element...');
+                    
+                    // Check if video element exists
+                    if (!video) {
+                        throw new Error('Video element not found');
+                    }
+                    
                     // Set video source to camera stream
                     video.srcObject = mediaStream;
                     video.style.display = 'block';
                     
+                    console.log('📹 Video element configured, setting up UI...');
+                    
                     // Hide fallback elements
-                    videoFallback.style.display = 'none';
-                    document.getElementById('camera-mode').innerHTML = '<i class="fas fa-camera"></i> Live Browser Camera';
+                    if (videoFallback) {
+                        videoFallback.style.display = 'none';
+                    }
+                    
+                    const cameraMode = document.getElementById('camera-mode');
+                    if (cameraMode) {
+                        cameraMode.innerHTML = '<i class="fas fa-camera"></i> Live Browser Camera';
+                    }
                     
                     // Set up canvas for frame capture
-                    video.addEventListener('loadedmetadata', () => {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                    });
+                    if (canvas && ctx) {
+                        video.addEventListener('loadedmetadata', () => {
+                            console.log('📹 Video metadata loaded, canvas size:', video.videoWidth, 'x', video.videoHeight);
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        });
+                    }
                     
                     // Start processing frames
                     video.addEventListener('playing', () => {
+                        console.log('📹 Video is playing, starting frame processing...');
                         startFrameProcessing();
                     });
+                    
+                    // Add error handling for video element
+                    video.addEventListener('error', (e) => {
+                        console.error('📹 Video element error:', e);
+                    });
+                    
+                    console.log('📹 Updating UI state...');
                     
                     // Update UI state
                     streamActive = true;
@@ -927,14 +969,22 @@
                     updateStatus('Online', 'Live Camera Active');
                     startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
                     startBtn.disabled = false;
-                    captureBtn.disabled = false;
-                    stopBtn.disabled = false;
-                    scanningIndicator.classList.add('active');
                     
+                    if (captureBtn) captureBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (scanningIndicator) scanningIndicator.classList.add('active');
+                    
+                    console.log('✅ WebRTC camera setup completed successfully');
                     return Promise.resolve();
                     
                 } catch (error) {
-                    console.error('WebRTC camera access failed:', error);
+                    console.error('❌ WebRTC camera access failed:', error);
+                    
+                    // Reset UI on error
+                    startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
+                    startBtn.disabled = false;
+                    updateStatus('Error', 'Camera access failed');
+                    
                     return Promise.reject(error);
                 }
             }
