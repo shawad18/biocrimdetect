@@ -888,24 +888,136 @@
                 }
             });
             
-            // Unified camera start function
+            // Unified camera start function - Simplified for hosted servers
             function startCameraSystem() {
-                // First try WebRTC for modern browsers
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    console.log('📹 Trying WebRTC camera...');
-                    startWebRTCCamera()
-                        .then(() => {
-                            console.log('✅ WebRTC camera started successfully');
-                        })
-                        .catch(error => {
-                            console.error('❌ WebRTC failed:', error);
-                            console.log('🔄 Falling back to server camera...');
-                            startServerCamera();
-                        });
+                console.log('🚀 Starting camera system (hosted server mode)...');
+                
+                // For hosted servers like Railway, use mock camera immediately
+                if (window.location.hostname.includes('railway.app') || 
+                    window.location.hostname.includes('herokuapp.com') ||
+                    window.location.hostname.includes('vercel.app')) {
+                    console.log('🌐 Detected hosted environment, starting mock camera...');
+                    startMockCamera();
                 } else {
-                    console.log('📹 WebRTC not supported, using server camera...');
-                    startServerCamera();
+                    // For local development, try WebRTC first
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        console.log('📹 Local environment - trying WebRTC camera...');
+                        startWebRTCCamera()
+                            .then(() => {
+                                console.log('✅ WebRTC camera started successfully');
+                            })
+                            .catch(error => {
+                                console.error('❌ WebRTC failed:', error);
+                                console.log('🔄 Falling back to mock camera...');
+                                startMockCamera();
+                            });
+                    } else {
+                        console.log('📹 WebRTC not supported, using mock camera...');
+                        startMockCamera();
+                    }
                 }
+            }
+            
+            // Mock Camera for Hosted Servers
+            function startMockCamera() {
+                console.log('🎭 Starting mock camera for demonstration...');
+                
+                try {
+                    // Hide WebRTC video, show fallback
+                    if (video) video.style.display = 'none';
+                    if (videoFallback) {
+                        videoFallback.style.display = 'block';
+                        // Use a placeholder image or canvas for demo
+                        videoFallback.src = 'data:image/svg+xml;base64,' + btoa(`
+                            <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="100%" height="100%" fill="#1a1a1a"/>
+                                <text x="50%" y="40%" font-family="Arial" font-size="24" fill="#00ff88" text-anchor="middle">
+                                    🎥 Mock Camera Active
+                                </text>
+                                <text x="50%" y="50%" font-family="Arial" font-size="16" fill="#ffffff" text-anchor="middle">
+                                    Simulating live camera feed
+                                </text>
+                                <text x="50%" y="60%" font-family="Arial" font-size="14" fill="#888888" text-anchor="middle">
+                                    Face detection ready for demonstration
+                                </text>
+                                <circle cx="320" cy="300" r="50" fill="none" stroke="#00ff88" stroke-width="2"/>
+                                <text x="50%" y="70%" font-family="Arial" font-size="12" fill="#00ff88" text-anchor="middle">
+                                    Detection Zone
+                                </text>
+                            </svg>
+                        `);
+                    }
+                    
+                    // Update camera mode indicator
+                    const cameraMode = document.getElementById('camera-mode');
+                    if (cameraMode) {
+                        cameraMode.innerHTML = '<i class="fas fa-video"></i> Demo Camera Mode';
+                        cameraMode.style.background = 'rgba(255, 193, 7, 0.9)';
+                    }
+                    
+                    // Update UI state
+                    streamActive = true;
+                    sessionStats.sessionStart = Date.now();
+                    updateStatus('Online', 'Demo Camera Active');
+                    startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                    startBtn.disabled = false;
+                    
+                    if (captureBtn) captureBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (scanningIndicator) scanningIndicator.classList.add('active');
+                    
+                    // Start mock face detection simulation
+                    startMockDetection();
+                    
+                    console.log('✅ Mock camera started successfully');
+                    
+                } catch (error) {
+                    console.error('❌ Mock camera failed:', error);
+                    handleCameraError('Mock camera failed: ' + error.message);
+                }
+            }
+            
+            // Mock Detection Simulation
+            function startMockDetection() {
+                console.log('🔍 Starting mock face detection...');
+                
+                // Simulate face detection every 3 seconds
+                const mockDetectionInterval = setInterval(() => {
+                    if (!streamActive) {
+                        clearInterval(mockDetectionInterval);
+                        return;
+                    }
+                    
+                    // Simulate random face detection
+                    const shouldDetectFace = Math.random() > 0.7; // 30% chance
+                    
+                    if (shouldDetectFace) {
+                        // Simulate detection of a face
+                        const mockResults = {
+                            faces_detected: 1,
+                            results: [{
+                                name: 'Demo Person',
+                                confidence: 0.85,
+                                status: 'DETECTED',
+                                location: [200, 150, 100, 100]
+                            }]
+                        };
+                        
+                        updateRecognitionResults(mockResults);
+                        console.log('🎭 Mock face detected');
+                    } else {
+                        // No face detected
+                        document.getElementById('faces-count').textContent = '0';
+                    }
+                    
+                    // Update scan count
+                    sessionStats.totalScans++;
+                    document.getElementById('total-scans').textContent = sessionStats.totalScans;
+                    
+                }, 3000);
+                
+                // Store interval for cleanup
+                window.mockDetectionInterval = mockDetectionInterval;
             }
             
             // WebRTC Camera Implementation
@@ -1492,69 +1604,87 @@
             });
             
             // Unified stop camera function
-            function stopCamera() {
-                // Update status
-                updateStatus('Stopping...', 'Shutting down');
-                stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
-                stopBtn.disabled = true;
-                
-                // Stop WebRTC camera if active
-                if (mediaStream) {
-                    console.log('Stopping WebRTC camera...');
-                    mediaStream.getTracks().forEach(track => {
-                        track.stop();
-                    });
-                    mediaStream = null;
-                    video.srcObject = null;
-                }
-                
-                // Stop frame processing
-                if (processingInterval) {
-                    clearInterval(processingInterval);
-                    processingInterval = null;
-                }
-                
-                // Stop server camera if active
-                fetch('/stop_stream')
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Server stream stopped:', data);
-                    })
-                    .catch(error => {
-                        console.error('Error stopping server stream:', error);
-                    })
-                    .finally(() => {
-                        // Reset UI after a short delay
-                        setTimeout(() => {
-                            resetControls();
-                            stopBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
-                            
-                            // Hide all video elements
-                            video.style.display = 'none';
-                            videoFallback.style.display = 'none';
-                            
-                            // Hide scanning indicator
-                            scanningIndicator.classList.remove('active');
-                            
-                            // Clear the results interval
-                            if (resultsInterval) {
-                                clearInterval(resultsInterval);
-                                resultsInterval = null;
-                            }
-                            
-                            // Clear the recognition overlay
-                            recognitionOverlay.innerHTML = '';
-                            resultContainer.style.display = 'none';
-                            
-                            // Reset session stats
-                            sessionStats.sessionStart = null;
-                            updateStatus('Offline', 'Standby', 0);
-                            
-                            // Reset camera mode indicator
-                            document.getElementById('camera-mode').innerHTML = '<i class="fas fa-camera"></i> Camera Ready';
-                        }, 500);
-                    });
-            }
+             function stopCamera() {
+                 console.log('🛑 Stopping camera system...');
+                 
+                 // Update status
+                 updateStatus('Stopping...', 'Shutting down');
+                 stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+                 stopBtn.disabled = true;
+                 
+                 // Stop WebRTC camera if active
+                 if (mediaStream) {
+                     console.log('🛑 Stopping WebRTC camera...');
+                     mediaStream.getTracks().forEach(track => {
+                         track.stop();
+                     });
+                     mediaStream = null;
+                     if (video) video.srcObject = null;
+                 }
+                 
+                 // Stop frame processing
+                 if (processingInterval) {
+                     clearInterval(processingInterval);
+                     processingInterval = null;
+                 }
+                 
+                 // Stop mock detection if active
+                 if (window.mockDetectionInterval) {
+                     console.log('🛑 Stopping mock detection...');
+                     clearInterval(window.mockDetectionInterval);
+                     window.mockDetectionInterval = null;
+                 }
+                 
+                 // Stop server camera if active
+                 fetch('/stop_stream')
+                     .then(response => response.json())
+                     .then(data => {
+                         console.log('🛑 Server stream stopped:', data);
+                     })
+                     .catch(error => {
+                         console.error('Error stopping server stream:', error);
+                     })
+                     .finally(() => {
+                         // Reset UI after a short delay
+                         setTimeout(() => {
+                             resetControls();
+                             stopBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                             
+                             // Hide all video elements
+                             if (video) video.style.display = 'none';
+                             if (videoFallback) {
+                                 videoFallback.style.display = 'none';
+                                 videoFallback.src = '';
+                             }
+                             
+                             // Hide scanning indicator
+                             if (scanningIndicator) scanningIndicator.classList.remove('active');
+                             
+                             // Clear the results interval
+                             if (resultsInterval) {
+                                 clearInterval(resultsInterval);
+                                 resultsInterval = null;
+                             }
+                             
+                             // Clear the recognition overlay
+                             if (recognitionOverlay) recognitionOverlay.innerHTML = '';
+                             if (resultContainer) resultContainer.style.display = 'none';
+                             
+                             // Reset session stats
+                             sessionStats.sessionStart = null;
+                             updateStatus('Offline', 'Standby', 0);
+                             
+                             // Reset camera mode indicator
+                             const cameraMode = document.getElementById('camera-mode');
+                             if (cameraMode) {
+                                 cameraMode.innerHTML = '<i class="fas fa-camera"></i> Camera Ready';
+                                 cameraMode.style.background = 'rgba(0, 123, 255, 0.9)';
+                             }
+                             
+                             console.log('✅ Camera system stopped successfully');
+                         }, 500);
+                     });
+             }
             
             // Handle camera errors
              function handleCameraError(message) {
