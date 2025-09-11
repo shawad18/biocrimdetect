@@ -581,6 +581,19 @@
             animation: pulse 2s infinite;
         }
         
+        .camera-mode-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -637,10 +650,15 @@
         <div class="main-content">
             <div class="video-section">
                 <div id="video-container">
-                    <img id="video" alt="Live Video Feed" style="display: none;">
+                    <video id="video" autoplay muted playsinline style="display: none;"></video>
+                    <img id="video-fallback" alt="Live Video Feed" style="display: none;">
+                    <canvas id="capture-canvas" style="display: none;"></canvas>
                     <div id="recognition-overlay"></div>
                     <div class="scanning-indicator" id="scanning-indicator">
                         <i class="fas fa-search"></i> Scanning for faces...
+                    </div>
+                    <div class="camera-mode-indicator" id="camera-mode">
+                        <i class="fas fa-camera"></i> Browser Camera Mode
                     </div>
                 </div>
                 
@@ -843,7 +861,14 @@
         
         
             
-            // Start video stream
+            // WebRTC Camera Variables
+            let mediaStream = null;
+            let processingInterval = null;
+            const canvas = document.getElementById('capture-canvas');
+            const ctx = canvas.getContext('2d');
+            const videoFallback = document.getElementById('video-fallback');
+            
+            // Start video stream with WebRTC
             startBtn.addEventListener('click', function() {
                 if (!streamActive) {
                     // Update status
@@ -851,18 +876,217 @@
                     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
                     startBtn.disabled = true;
                     
-                    // Start the camera stream on the server first
-                    fetch('/start_stream', {
+                    // Try WebRTC first (for hosted servers)
+                    startWebRTCCamera()
+                        .then(() => {
+                            console.log('✅ WebRTC camera started successfully');
+                        })
+                        .catch(error => {
+                            console.log('WebRTC failed, trying server camera:', error);
+                            // Fallback to server camera
+                            startServerCamera();
+                        });
+                }
+            });
+            
+            // WebRTC Camera Implementation
+            async function startWebRTCCamera() {
+                try {
+                    // Request camera access
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        },
+                        audio: false
+                    });
+                    
+                    // Set video source to camera stream
+                    video.srcObject = mediaStream;
+                    video.style.display = 'block';
+                    
+                    // Hide fallback elements
+                    videoFallback.style.display = 'none';
+                    document.getElementById('camera-mode').innerHTML = '<i class="fas fa-camera"></i> Live Browser Camera';
+                    
+                    // Set up canvas for frame capture
+                    video.addEventListener('loadedmetadata', () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    });
+                    
+                    // Start processing frames
+                    video.addEventListener('playing', () => {
+                        startFrameProcessing();
+                    });
+                    
+                    // Update UI state
+                    streamActive = true;
+                    sessionStats.sessionStart = Date.now();
+                    updateStatus('Online', 'Live Camera Active');
+                    startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                    startBtn.disabled = false;
+                    captureBtn.disabled = false;
+                    stopBtn.disabled = false;
+                    scanningIndicator.classList.add('active');
+                    
+                    return Promise.resolve();
+                    
+                } catch (error) {
+                    console.error('WebRTC camera access failed:', error);
+                    return Promise.reject(error);
+                }
+            }
+            
+            // Server Camera Fallback
+            function startServerCamera() {
+                fetch('/start_stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Use server camera (original implementation)
+                        video.style.display = 'none';
+                        videoFallback.style.display = 'block';
+                        document.getElementById('camera-mode').innerHTML = '<i class="fas fa-server"></i> Server Camera Mode';
+                        
+                        // Set up server video feed
+                        setupServerVideoFeed();
+                    } else {
+                        handleCameraError('Server camera failed: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    handleCameraError('Failed to start server camera: ' + error.message);
+                });
+            }
+            
+            // Frame Processing for WebRTC
+            function startFrameProcessing() {
+                if (processingInterval) {
+                    clearInterval(processingInterval);
+                }
+                
+                processingInterval = setInterval(() => {
+                    if (streamActive && video.videoWidth > 0) {
+                        captureAndProcessFrame();
+                    }
+                }, 1000); // Process every second
+            }
+            
+            // Capture and process frame
+            function captureAndProcessFrame() {
+                try {
+                    // Draw video frame to canvas
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to base64
+                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Send to server for processing
+                    fetch('/process_browser_frame', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({ image: imageData })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Set up comprehensive video feed event handling
-                            video.onerror = function(e) {
+                            updateRecognitionResults(data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Frame processing error:', error);
+                    });
+                } catch (error) {
+                    console.error('Frame capture error:', error);
+                }
+            }
+            
+            // Update recognition results
+            function updateRecognitionResults(data) {
+                const facesCount = data.faces_detected || 0;
+                document.getElementById('faces-count').textContent = facesCount;
+                
+                if (data.results && data.results.length > 0) {
+                    for (const result of data.results) {
+                        if (result.status === 'MATCH' && result.confidence > 0.7) {
+                            // Show match modal for high confidence matches
+                            showMatchModal(true, result.name, result.confidence);
+                            sessionStats.matchesFound++;
+                            document.getElementById('matches-found').textContent = sessionStats.matchesFound;
+                        }
+                    }
+                }
+                
+                sessionStats.totalScans++;
+                document.getElementById('total-scans').textContent = sessionStats.totalScans;
+            }
+            
+            // Setup server video feed (fallback)
+             function setupServerVideoFeed() {
+                 // Set up comprehensive video feed event handling for server camera
+                 videoFallback.onerror = function(e) {
+                     console.error('Video feed error:', e);
+                     updateStatus('Error', 'Video feed failed');
+                     // Try to restart the video feed after a delay
+                     setTimeout(() => {
+                         if (streamActive) {
+                             console.log('Attempting to restart video feed...');
+                             videoFallback.src = "/video_feed?t=" + new Date().getTime();
+                         }
+                     }, 2000);
+                 };
+                 
+                 videoFallback.onloadstart = function() {
+                     console.log('Video feed loading started...');
+                     updateStatus('Online', 'Loading feed...');
+                 };
+                 
+                 videoFallback.onload = function() {
+                     console.log('Video feed loaded successfully');
+                     updateStatus('Online', 'Active');
+                 };
+                 
+                 // Set the video source with a timestamp to prevent caching
+                 videoFallback.src = "/video_feed?t=" + new Date().getTime();
+                 
+                 // Show the video feed
+                 videoFallback.style.display = 'block';
+                 streamActive = true;
+                 sessionStats.sessionStart = Date.now();
+                 
+                 // Update UI state
+                 updateStatus('Online', 'Server Camera Active');
+                 startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                 startBtn.disabled = false;
+                 captureBtn.disabled = false;
+                 stopBtn.disabled = false;
+                 scanningIndicator.classList.add('active');
+                 
+                 // Start polling for recognition results
+                 resultsInterval = setInterval(fetchRecognitionResults, 1000);
+             }
+             
+             // Reset controls function
+             function resetControls() {
+                 streamActive = false;
+                 startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
+                 startBtn.disabled = false;
+                 captureBtn.disabled = true;
+                 stopBtn.disabled = true;
+             }
+             
+             // Continue with original video error handling for compatibility
+             function setupOriginalVideoHandling() {
+                 video.onerror = function(e) {
                                 console.error('Video feed error:', e);
                                 updateStatus('Error', 'Video feed failed');
                                 // Try to restart the video feed after a delay
@@ -1167,52 +1391,85 @@
                     });
             });
             
-            // Stop video stream
+            // Stop video stream (handles both WebRTC and server camera)
             stopBtn.addEventListener('click', function() {
                 if (streamActive) {
-                    // Update status
-                    updateStatus('Stopping...', 'Shutting down');
-                    stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
-                    stopBtn.disabled = true;
-                    
-                    // Stop the video feed
-                    fetch('/stop_stream')
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log('Stream stopped:', data);
-                        })
-                        .catch(error => {
-                            console.error('Error stopping stream:', error);
-                        })
-                        .finally(() => {
-                            // Reset UI after a short delay
-                            setTimeout(() => {
-                                resetControls();
-                                stopBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
-                                
-                                // Hide the video
-                                video.style.display = 'none';
-                                
-                                // Hide scanning indicator
-                                scanningIndicator.classList.remove('active');
-                                
-                                // Clear the results interval
-                                if (resultsInterval) {
-                                    clearInterval(resultsInterval);
-                                    resultsInterval = null;
-                                }
-                                
-                                // Clear the recognition overlay
-                                recognitionOverlay.innerHTML = '';
-                                resultContainer.style.display = 'none';
-                                
-                                // Reset session stats
-                                sessionStats.sessionStart = null;
-                                updateStatus('Offline', 'Standby', 0);
-                            }, 500);
-                        });
+                    stopCamera();
                 }
             });
+            
+            // Unified stop camera function
+            function stopCamera() {
+                // Update status
+                updateStatus('Stopping...', 'Shutting down');
+                stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+                stopBtn.disabled = true;
+                
+                // Stop WebRTC camera if active
+                if (mediaStream) {
+                    console.log('Stopping WebRTC camera...');
+                    mediaStream.getTracks().forEach(track => {
+                        track.stop();
+                    });
+                    mediaStream = null;
+                    video.srcObject = null;
+                }
+                
+                // Stop frame processing
+                if (processingInterval) {
+                    clearInterval(processingInterval);
+                    processingInterval = null;
+                }
+                
+                // Stop server camera if active
+                fetch('/stop_stream')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Server stream stopped:', data);
+                    })
+                    .catch(error => {
+                        console.error('Error stopping server stream:', error);
+                    })
+                    .finally(() => {
+                        // Reset UI after a short delay
+                        setTimeout(() => {
+                            resetControls();
+                            stopBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                            
+                            // Hide all video elements
+                            video.style.display = 'none';
+                            videoFallback.style.display = 'none';
+                            
+                            // Hide scanning indicator
+                            scanningIndicator.classList.remove('active');
+                            
+                            // Clear the results interval
+                            if (resultsInterval) {
+                                clearInterval(resultsInterval);
+                                resultsInterval = null;
+                            }
+                            
+                            // Clear the recognition overlay
+                            recognitionOverlay.innerHTML = '';
+                            resultContainer.style.display = 'none';
+                            
+                            // Reset session stats
+                            sessionStats.sessionStart = null;
+                            updateStatus('Offline', 'Standby', 0);
+                            
+                            // Reset camera mode indicator
+                            document.getElementById('camera-mode').innerHTML = '<i class="fas fa-camera"></i> Camera Ready';
+                        }, 500);
+                    });
+            }
+            
+            // Handle camera errors
+            function handleCameraError(message) {
+                console.error('Camera error:', message);
+                updateStatus('Error', 'Camera failed');
+                alert('Camera Error: ' + message);
+                resetControls();
+            }
             
             // Clean up when leaving the page
             window.addEventListener('beforeunload', function() {

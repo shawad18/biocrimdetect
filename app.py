@@ -990,6 +990,84 @@ def stop_stream():
         print(f"❌ Error stopping stream: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Failed to stop camera: {str(e)}'}), 500
 
+@app.route('/process_browser_frame', methods=['POST'])
+def process_browser_frame():
+    """Process camera frame from browser using WebRTC"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        data = request.json
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
+        
+        # Get base64 image data
+        image_data = data['image']
+        
+        # Remove data URL prefix if present
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        
+        # Decode base64 to image
+        import base64
+        import numpy as np
+        from PIL import Image
+        import io
+        
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert PIL to OpenCV format
+        opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # Process with enhanced face detection if available
+        results = []
+        if ENHANCED_DETECTION_AVAILABLE:
+            try:
+                # Use enhanced face detection for processing
+                from facial_recognition.enhanced_face_detection import EnhancedFaceDetection
+                detector = EnhancedFaceDetection()
+                
+                # Process the frame
+                detection_results = detector.process_frame(opencv_image)
+                
+                if detection_results:
+                    for result in detection_results:
+                        results.append({
+                            'name': result.get('name', 'Unknown'),
+                            'confidence': result.get('confidence', 0.0),
+                            'status': 'MATCH' if result.get('confidence', 0) > 0.7 else 'NO_MATCH',
+                            'location': result.get('location', [0, 0, 100, 100])
+                        })
+            except Exception as e:
+                print(f"Enhanced detection error: {str(e)}")
+        
+        # Fallback to simple processing
+        if not results:
+            # Simple face detection using OpenCV
+            gray = cv2.cvtColor(opencv_image, cv2.COLOR_BGR2GRAY)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            
+            for (x, y, w, h) in faces:
+                results.append({
+                    'name': 'Unknown Person',
+                    'confidence': 0.5,
+                    'status': 'DETECTED',
+                    'location': [x, y, w, h]
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'results': results,
+            'faces_detected': len(results),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"Error processing browser frame: {str(e)}")
+        return jsonify({'error': f'Processing failed: {str(e)}'}), 500
+
 @app.route('/get_recognition_results')
 def get_recognition_results():
     """Get current face recognition results for frontend"""
