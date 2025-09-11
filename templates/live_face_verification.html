@@ -868,33 +868,45 @@
             const ctx = canvas.getContext('2d');
             const videoFallback = document.getElementById('video-fallback');
             
-            // Start video stream with WebRTC
+            // Start video stream - Simplified approach for hosted servers
             startBtn.addEventListener('click', function() {
                 console.log('🔍 Start camera button clicked, streamActive:', streamActive);
+                
                 if (!streamActive) {
-                    // Update status
+                    // Update status immediately
                     updateStatus('Initializing...', 'Starting up');
                     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
                     startBtn.disabled = true;
                     
-                    console.log('🚀 Attempting to start WebRTC camera...');
+                    console.log('🚀 Starting camera system...');
                     
-                    // Try WebRTC first (for hosted servers)
+                    // Try multiple approaches in sequence
+                    startCameraSystem();
+                } else {
+                    console.log('⚠️ Camera already active, stopping instead');
+                    stopCamera();
+                }
+            });
+            
+            // Unified camera start function
+            function startCameraSystem() {
+                // First try WebRTC for modern browsers
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    console.log('📹 Trying WebRTC camera...');
                     startWebRTCCamera()
                         .then(() => {
                             console.log('✅ WebRTC camera started successfully');
                         })
                         .catch(error => {
                             console.error('❌ WebRTC failed:', error);
-                            console.log('🔄 Trying server camera fallback...');
-                            // Fallback to server camera
+                            console.log('🔄 Falling back to server camera...');
                             startServerCamera();
                         });
                 } else {
-                    console.log('⚠️ Camera already active, stopping instead');
-                    stopCamera();
+                    console.log('📹 WebRTC not supported, using server camera...');
+                    startServerCamera();
                 }
-            });
+            }
             
             // WebRTC Camera Implementation
             async function startWebRTCCamera() {
@@ -990,31 +1002,62 @@
             }
             
             // Server Camera Fallback
-            function startServerCamera() {
-                fetch('/start_stream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Use server camera (original implementation)
-                        video.style.display = 'none';
-                        videoFallback.style.display = 'block';
-                        document.getElementById('camera-mode').innerHTML = '<i class="fas fa-server"></i> Server Camera Mode';
-                        
-                        // Set up server video feed
-                        setupServerVideoFeed();
-                    } else {
-                        handleCameraError('Server camera failed: ' + (data.message || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    handleCameraError('Failed to start server camera: ' + error.message);
-                });
-            }
+             function startServerCamera() {
+                 console.log('🖥️ Starting server camera fallback...');
+                 
+                 fetch('/start_stream', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json'
+                     }
+                 })
+                 .then(response => {
+                     console.log('🖥️ Server camera response received:', response.status);
+                     return response.json();
+                 })
+                 .then(data => {
+                     console.log('🖥️ Server camera data:', data);
+                     
+                     if (data.status === 'success') {
+                         console.log('✅ Server camera started, setting up video feed...');
+                         
+                         // Use server camera (original implementation)
+                         if (video) video.style.display = 'none';
+                         if (videoFallback) {
+                             videoFallback.style.display = 'block';
+                             videoFallback.src = "/video_feed?t=" + new Date().getTime();
+                         }
+                         
+                         const cameraMode = document.getElementById('camera-mode');
+                         if (cameraMode) {
+                             cameraMode.innerHTML = '<i class="fas fa-server"></i> Server Camera Mode';
+                         }
+                         
+                         // Update UI state
+                         streamActive = true;
+                         sessionStats.sessionStart = Date.now();
+                         updateStatus('Online', 'Server Camera Active');
+                         startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                         startBtn.disabled = false;
+                         
+                         if (captureBtn) captureBtn.disabled = false;
+                         if (stopBtn) stopBtn.disabled = false;
+                         if (scanningIndicator) scanningIndicator.classList.add('active');
+                         
+                         // Start polling for recognition results
+                         resultsInterval = setInterval(fetchRecognitionResults, 1000);
+                         
+                         console.log('✅ Server camera setup completed');
+                     } else {
+                         console.error('❌ Server camera failed:', data.message);
+                         handleCameraError('Server camera failed: ' + (data.message || 'Unknown error'));
+                     }
+                 })
+                 .catch(error => {
+                     console.error('❌ Server camera request failed:', error);
+                     handleCameraError('Failed to start server camera: ' + error.message);
+                 });
+             }
             
             // Frame Processing for WebRTC
             function startFrameProcessing() {
@@ -1514,12 +1557,37 @@
             }
             
             // Handle camera errors
-            function handleCameraError(message) {
-                console.error('Camera error:', message);
-                updateStatus('Error', 'Camera failed');
-                alert('Camera Error: ' + message);
-                resetControls();
-            }
+             function handleCameraError(message) {
+                 console.error('❌ Camera error:', message);
+                 
+                 // Reset UI state
+                 streamActive = false;
+                 startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
+                 startBtn.disabled = false;
+                 
+                 if (captureBtn) captureBtn.disabled = true;
+                 if (stopBtn) stopBtn.disabled = true;
+                 if (scanningIndicator) scanningIndicator.classList.remove('active');
+                 
+                 // Update status
+                 updateStatus('Error', 'Camera failed');
+                 
+                 // Show user-friendly error message
+                 const errorMsg = message.includes('Permission denied') ? 
+                     'Camera access denied. Please allow camera permissions and try again.' :
+                     message.includes('not found') ?
+                     'No camera detected. Please check your camera connection.' :
+                     'Camera failed to start. Please refresh the page and try again.';
+                 
+                 // Show error in UI instead of alert
+                 const cameraMode = document.getElementById('camera-mode');
+                 if (cameraMode) {
+                     cameraMode.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + errorMsg;
+                     cameraMode.style.background = 'rgba(255, 69, 58, 0.9)';
+                 }
+                 
+                 console.log('🔄 Camera error handled, UI reset');
+             }
             
             // Clean up when leaving the page
             window.addEventListener('beforeunload', function() {
