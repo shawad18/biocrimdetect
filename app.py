@@ -958,8 +958,8 @@ def start_stream():
             
             if live_recognition is not None:
                 live_recognition.start()
-                # Give the camera time to initialize
-                time.sleep(1.0)  # Increased time for enhanced detection
+                # Minimal delay for camera initialization - optimized for immediate response
+                time.sleep(0.1)  # Reduced from 1.0s to 0.1s for immediate camera opening
                 return jsonify({'status': 'success', 'message': 'Enhanced camera system started successfully', 'type': 'enhanced' if ENHANCED_DETECTION_AVAILABLE else 'standard'})
             else:
                 return jsonify({'status': 'error', 'message': 'Failed to initialize camera'})
@@ -1089,16 +1089,8 @@ camera_detector = None
 
 @app.route('/live_camera_detection')
 def live_camera_detection():
-    """Route for real camera detection page"""
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('login'))
-    
-    # Check if OpenCV and simple camera detection are available
-    if not CV2_AVAILABLE or not globals().get('SIMPLE_CAMERA_AVAILABLE', False):
-        return render_template('feature_unavailable.html', 
-                              message="Real camera detection is not available. OpenCV is required but not supported on this platform.")
-    
-    return render_template('live_camera_detection.html')
+    """Redirect to the new live face verification page"""
+    return redirect('/match')
 
 @app.route('/start_camera_detection', methods=['POST'])
 def start_camera_detection():
@@ -1220,11 +1212,7 @@ def live_fingerprint_verification():
         return redirect(url_for('login'))
     return render_template('live_fingerprint_verification.html')
 
-@app.route('/match/live')
-def match_live_face():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('login'))
-    return render_template('live_face_verification.html')
+
 
 @app.route('/api/camera/modes')
 def get_camera_modes():

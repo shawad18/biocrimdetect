@@ -918,33 +918,39 @@
                             // Set the video source with a timestamp to prevent caching
                             video.src = "/video_feed?t=" + new Date().getTime();
                             
-                            // Show the video feed
+                            // Show the video feed immediately
                             video.style.display = 'block';
                             streamActive = true;
                             sessionStats.sessionStart = Date.now();
                             
-                            // Update UI state
-                            setTimeout(() => {
-                                updateStatus('Online', 'Active');
-                                startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
-                                captureBtn.disabled = false;
-                                stopBtn.disabled = false;
-                                
-                                // Show scanning indicator
-                                scanningIndicator.classList.add('active');
-                                
-                                // Start polling for recognition results
-                                resultsInterval = setInterval(fetchRecognitionResults, 1000);
-                                
-                                // Start status update timer
-                                const statusTimer = setInterval(() => {
-                                    if (streamActive) {
-                                        updateStatus('Online', 'Scanning');
-                                    } else {
-                                        clearInterval(statusTimer);
-                                    }
-                                }, 1000);
+                            // Update UI state immediately for instant response
+                            updateStatus('Online', 'Starting');
+                            startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+                            startBtn.disabled = false;
+                            captureBtn.disabled = false;
+                            stopBtn.disabled = false;
+                            
+                            // Show scanning indicator immediately
+                            scanningIndicator.classList.add('active');
+                            
+                            // Start polling for recognition results immediately
+                            resultsInterval = setInterval(fetchRecognitionResults, 1000);
+                            
+                            // Start status update timer immediately
+                            const statusTimer = setInterval(() => {
+                                if (streamActive) {
+                                    updateStatus('Online', 'Scanning');
+                                } else {
+                                    clearInterval(statusTimer);
+                                }
                             }, 1000);
+                            
+                            // Quick status update after video loads
+                            setTimeout(() => {
+                                if (streamActive) {
+                                    updateStatus('Online', 'Active');
+                                }
+                            }, 200);
                             
                             // Set multiple timeouts to check if video is working
                             let retryCount = 0;
@@ -973,8 +979,8 @@
                                 }
                             };
                             
-                            // Start checking video feed after 5 seconds (give more time for initialization)
-                            setTimeout(checkVideoFeed, 5000);
+                            // Start checking video feed after 1 second (optimized for immediate response)
+                            setTimeout(checkVideoFeed, 1000);
                             
                         } else {
                             updateStatus('Error', data.message || 'Failed to start');

@@ -62,7 +62,7 @@ class NavigationManager {
                     <ul class="nav-menu">
                         <li><a href="/register" class="nav-link"><i class="fas fa-user-plus"></i> Register Suspect</a></li>
                         <li><a href="/view_criminals" class="nav-link"><i class="fas fa-users"></i> View Suspects</a></li>
-                        <li><a href="/live_camera_detection" class="nav-link"><i class="fas fa-camera"></i> Match Face</a></li>
+                        <li><a href="/match" class="nav-link"><i class="fas fa-camera"></i> Match Face</a></li>
                         <li><a href="/match_fingerprint/live" class="nav-link"><i class="fas fa-fingerprint"></i> Match Fingerprint</a></li>
                         <li><a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Profile</a></li>
                         <li><a href="/reports" class="nav-link"><i class="fas fa-chart-bar"></i> Reports</a></li>
