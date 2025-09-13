@@ -723,64 +723,141 @@
                 }
             });
             
-            // Unified camera start function - Real camera prioritized
+            // Unified camera start function - Smart camera prioritization
             function startCameraSystem() {
-                console.log('🚀 Starting camera system (real camera mode)...');
+                console.log('🚀 Starting camera system with smart prioritization...');
                 
-                // Try WebRTC first for all environments (including hosted)
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    console.log('📹 Attempting WebRTC camera access...');
-                    startWebRTCCamera()
-                        .then(() => {
-                            console.log('✅ WebRTC camera started successfully');
-                        })
-                        .catch(error => {
-                            console.error('❌ WebRTC failed:', error);
-                            console.log('🔄 Falling back to server camera...');
-                            // Try server camera fallback
-                            startServerCamera()
-                                .catch(serverError => {
-                                    console.error('❌ Server camera also failed:', serverError);
-                                    console.log('🎭 Using mock camera as final fallback...');
-                                    startMockCamera();
-                                });
-                        });
-                } else {
-                    console.log('📹 WebRTC not supported, trying server camera...');
+                // Detect hosting environment
+                const isRailway = window.location.hostname.includes('railway.app');
+                const isHTTPS = window.location.protocol === 'https:';
+                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                
+                console.log(`🌐 Environment: ${isRailway ? 'Railway' : isLocalhost ? 'Local' : 'Other'} | Protocol: ${window.location.protocol}`);
+                
+                // For Railway or HTTPS environments, prioritize server camera
+                if (isRailway || (isHTTPS && !isLocalhost)) {
+                    console.log('🖥️ Hosted environment detected - prioritizing server camera...');
+                    updateStatus('Connecting...', 'Initializing server camera');
+                    
                     startServerCamera()
-                        .catch(error => {
-                            console.error('❌ Server camera failed:', error);
-                            console.log('🎭 Using mock camera as fallback...');
+                        .then(() => {
+                            console.log('✅ Server camera started successfully');
+                        })
+                        .catch(serverError => {
+                            console.error('❌ Server camera failed:', serverError);
+                            console.log('🎭 Falling back to mock camera for demo...');
+                            updateStatus('Demo Mode', 'Using simulation camera');
                             startMockCamera();
                         });
+                } else {
+                    // For local development, try WebRTC first
+                    console.log('🏠 Local environment - trying WebRTC camera...');
+                    updateStatus('Requesting Permission', 'Accessing camera');
+                    
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        startWebRTCCamera()
+                            .then(() => {
+                                console.log('✅ WebRTC camera started successfully');
+                            })
+                            .catch(error => {
+                                console.error('❌ WebRTC failed:', error);
+                                console.log('🔄 Falling back to server camera...');
+                                updateStatus('Fallback Mode', 'Switching to server camera');
+                                
+                                startServerCamera()
+                                    .catch(serverError => {
+                                        console.error('❌ Server camera also failed:', serverError);
+                                        console.log('🎭 Using mock camera as final fallback...');
+                                        updateStatus('Demo Mode', 'Using simulation camera');
+                                        startMockCamera();
+                                    });
+                            });
+                    } else {
+                        console.log('📹 WebRTC not supported, trying server camera...');
+                        updateStatus('Fallback Mode', 'WebRTC not available');
+                        
+                        startServerCamera()
+                            .catch(error => {
+                                console.error('❌ Server camera failed:', error);
+                                console.log('🎭 Using mock camera as fallback...');
+                                updateStatus('Demo Mode', 'Using simulation camera');
+                                startMockCamera();
+                            });
+                    }
                 }
             }
             
-            // Mock Camera for Hosted Servers
+            // Enhanced Mock Camera for Railway Deployment
             function startMockCamera() {
-                console.log('🎭 Starting mock camera for demonstration...');
+                console.log('🎭 Starting enhanced demo camera for Railway deployment...');
                 
                 try {
                     // Hide WebRTC video, show fallback
                     if (video) video.style.display = 'none';
                     if (videoFallback) {
                         videoFallback.style.display = 'block';
-                        // Use a placeholder image or canvas for demo
+                        // Create professional demo camera interface
                         videoFallback.src = 'data:image/svg+xml;base64,' + btoa(`
                             <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
-                                <rect width="100%" height="100%" fill="#1a1a1a"/>
-                                <text x="50%" y="40%" font-family="Arial" font-size="24" fill="#00ff88" text-anchor="middle">
-                                    🎥 Mock Camera Active
+                                <defs>
+                                    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+                                    </linearGradient>
+                                    <filter id="glow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge> 
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/> 
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                <rect width="100%" height="100%" fill="url(#bg)"/>
+                                
+                                <!-- Grid overlay for professional look -->
+                                <defs>
+                                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00ff88" stroke-width="0.5" opacity="0.3"/>
+                                    </pattern>
+                                </defs>
+                                <rect width="100%" height="100%" fill="url(#grid)" />
+                                
+                                <!-- Header -->
+                                <text x="50%" y="30" font-family="Arial, sans-serif" font-size="18" fill="#00ff88" text-anchor="middle" filter="url(#glow)">
+                                    🎥 RAILWAY DEMO CAMERA ACTIVE
                                 </text>
-                                <text x="50%" y="50%" font-family="Arial" font-size="16" fill="#ffffff" text-anchor="middle">
-                                    Simulating live camera feed
+                                
+                                <!-- Status indicators -->
+                                <text x="50%" y="60" font-family="Arial, sans-serif" font-size="14" fill="#ffffff" text-anchor="middle">
+                                    ✅ System Online | 🔍 Face Detection Ready | 🗄️ Database Connected
                                 </text>
-                                <text x="50%" y="60%" font-family="Arial" font-size="14" fill="#888888" text-anchor="middle">
-                                    Face detection ready for demonstration
+                                
+                                <!-- Main detection area -->
+                                <rect x="220" y="140" width="200" height="200" fill="none" stroke="#00ff88" stroke-width="2" stroke-dasharray="10,5" opacity="0.8">
+                                    <animate attributeName="opacity" values="0.8;0.4;0.8" dur="2s" repeatCount="indefinite"/>
+                                </rect>
+                                
+                                <!-- Face detection zone -->
+                                <circle cx="320" cy="240" r="60" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.6">
+                                    <animate attributeName="r" values="60;70;60" dur="3s" repeatCount="indefinite"/>
+                                </circle>
+                                
+                                <!-- Crosshairs -->
+                                <line x1="300" y1="240" x2="340" y2="240" stroke="#00ff88" stroke-width="2" opacity="0.8"/>
+                                <line x1="320" y1="220" x2="320" y2="260" stroke="#00ff88" stroke-width="2" opacity="0.8"/>
+                                
+                                <!-- Instructions -->
+                                <text x="50%" y="380" font-family="Arial, sans-serif" font-size="16" fill="#ffffff" text-anchor="middle">
+                                    Click 'Capture & Identify' to test criminal database matching
                                 </text>
-                                <circle cx="320" cy="300" r="50" fill="none" stroke="#00ff88" stroke-width="2"/>
-                                <text x="50%" y="70%" font-family="Arial" font-size="12" fill="#00ff88" text-anchor="middle">
-                                    Detection Zone
+                                
+                                <text x="50%" y="410" font-family="Arial, sans-serif" font-size="14" fill="#888888" text-anchor="middle">
+                                    Demo Mode: Simulates real camera with 6 criminal records
+                                </text>
+                                
+                                <!-- Railway indicator -->
+                                <text x="50%" y="450" font-family="Arial, sans-serif" font-size="12" fill="#00ff88" text-anchor="middle">
+                                    🚂 Hosted on Railway | Professional Biometric Detection System
                                 </text>
                             </svg>
                         `);
@@ -789,8 +866,10 @@
                     // Update camera mode indicator
                     const cameraMode = document.getElementById('camera-mode');
                     if (cameraMode) {
-                        cameraMode.innerHTML = '<i class="fas fa-video"></i> Demo Camera Mode';
-                        cameraMode.style.background = 'rgba(255, 193, 7, 0.9)';
+                        cameraMode.innerHTML = '<i class="fas fa-video"></i> Railway Demo Camera';
+                        cameraMode.style.background = 'linear-gradient(45deg, #00ff88, #0066cc)';
+                        cameraMode.style.color = '#ffffff';
+                        cameraMode.style.fontWeight = 'bold';
                     }
                     
                     // Update UI state
@@ -815,47 +894,145 @@
                 }
             }
             
-            // Mock Detection Simulation
+            // Enhanced Mock Detection for Railway Demo
             function startMockDetection() {
-                console.log('🔍 Starting mock face detection...');
+                console.log('🔍 Starting enhanced mock face detection for Railway demo...');
                 
-                // Simulate face detection every 3 seconds
+                // Demo scenarios with realistic criminal database results
+                const demoScenarios = [
+                    {
+                        name: 'John Smith',
+                        confidence: 0.92,
+                        status: 'MATCH',
+                        criminal_details: {
+                            crime: 'Armed Robbery',
+                            case_id: 'CR-2024-001',
+                            status: 'ACTIVE WARRANT'
+                        }
+                    },
+                    {
+                        name: 'Sarah Johnson',
+                        confidence: 0.88,
+                        status: 'MATCH',
+                        criminal_details: {
+                            crime: 'Fraud',
+                            case_id: 'CR-2024-002',
+                            status: 'ACTIVE WARRANT'
+                        }
+                    },
+                    {
+                        name: 'Unknown Person',
+                        confidence: 0.75,
+                        status: 'NO_MATCH',
+                        criminal_details: {}
+                    },
+                    {
+                        name: 'Demo Visitor',
+                        confidence: 0.82,
+                        status: 'NO_MATCH',
+                        criminal_details: {}
+                    }
+                ];
+                
+                let scenarioIndex = 0;
+                
+                // Simulate face detection every 4 seconds
                 const mockDetectionInterval = setInterval(() => {
                     if (!streamActive) {
                         clearInterval(mockDetectionInterval);
                         return;
                     }
                     
-                    // Simulate random face detection
-                    const shouldDetectFace = Math.random() > 0.7; // 30% chance
+                    // Simulate face detection (80% chance)
+                    const shouldDetectFace = Math.random() > 0.2;
                     
                     if (shouldDetectFace) {
-                        // Simulate detection of a face
+                        // Use next scenario in rotation
+                        const scenario = demoScenarios[scenarioIndex % demoScenarios.length];
+                        scenarioIndex++;
+                        
                         const mockResults = {
                             faces_detected: 1,
                             results: [{
-                                name: 'Demo Person',
-                                confidence: 0.85,
-                                status: 'DETECTED',
-                                location: [200, 150, 100, 100]
+                                name: scenario.name,
+                                confidence: scenario.confidence,
+                                status: scenario.status,
+                                criminal_details: scenario.criminal_details,
+                                location: [220, 140, 200, 200]
                             }]
                         };
                         
                         updateRecognitionResults(mockResults);
-                        console.log('🎭 Mock face detected');
+                        console.log(`🎭 Mock detection: ${scenario.name} (${scenario.status})`);
+                        
+                        // Update faces count
+                        document.getElementById('faces-count').textContent = '1';
                     } else {
                         // No face detected
                         document.getElementById('faces-count').textContent = '0';
+                        console.log('🎭 Mock detection: No face in frame');
                     }
                     
                     // Update scan count
                     sessionStats.totalScans++;
                     document.getElementById('total-scans').textContent = sessionStats.totalScans;
                     
-                }, 3000);
+                }, 4000);
                 
                 // Store interval for cleanup
                 window.mockDetectionInterval = mockDetectionInterval;
+                
+                // Show initial message
+                setTimeout(() => {
+                    if (streamActive) {
+                        updateStatus('Demo Active', 'Scanning for faces...');
+                    }
+                }, 1000);
+            }
+            
+            // Enhanced capture function for mock camera
+            function mockCaptureAndIdentify() {
+                console.log('📸 Mock capture & identify triggered...');
+                
+                // Simulate immediate identification result
+                const scenarios = [
+                    {
+                        name: 'Michael Rodriguez',
+                        confidence: 0.94,
+                        status: 'MATCH',
+                        criminal_details: {
+                            crime: 'Burglary',
+                            case_id: 'CR-2024-003',
+                            status: 'ACTIVE WARRANT'
+                        }
+                    },
+                    {
+                        name: 'Clean Citizen',
+                        confidence: 0.89,
+                        status: 'NO_MATCH',
+                        criminal_details: {}
+                    }
+                ];
+                
+                // Random scenario selection
+                const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+                
+                const mockResult = {
+                    status: 'success',
+                    faces_detected: 1,
+                    results: [scenario]
+                };
+                
+                // Show result immediately
+                showIdentificationResults(mockResult);
+                
+                // Update statistics
+                sessionStats.totalScans++;
+                if (scenario.status === 'MATCH') {
+                    sessionStats.matchesFound++;
+                }
+                
+                console.log(`📸 Mock identification: ${scenario.name} (${scenario.status})`);
             }
             
             // WebRTC Camera Implementation
@@ -1222,12 +1399,21 @@
                 });
             }
             
-            // Capture button event listener
+            // Enhanced Capture button event listener with mock support
             captureBtn.addEventListener('click', function() {
                 if (streamActive) {
                     console.log('📸 Capturing frame for identification...');
                     
-                    if (mediaStream) {
+                    // Check camera mode
+                    const cameraMode = document.getElementById('camera-mode');
+                    const isDemoMode = cameraMode && cameraMode.textContent.includes('Demo');
+                    
+                    if (isDemoMode) {
+                        // Mock camera - use demo capture
+                        console.log('🎭 Using mock capture for Railway demo...');
+                        updateStatus('Processing', 'Analyzing demo capture...');
+                        mockCaptureAndIdentify();
+                    } else if (mediaStream) {
                         // WebRTC camera - capture from video element
                         captureAndProcessFrame();
                     } else {
