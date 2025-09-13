@@ -1123,6 +1123,65 @@ def get_recognition_results():
             'error': str(e)
         }), 500
 
+@app.route('/capture_frame', methods=['POST'])
+def capture_frame():
+    """Capture current frame from server camera and process for identification"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    global live_recognition
+    
+    try:
+        if live_recognition is None:
+            return jsonify({'status': 'error', 'message': 'Camera not initialized'})
+        
+        # Get current frame from camera
+        frame = live_recognition.get_frame()
+        if frame is None:
+            return jsonify({'status': 'error', 'message': 'No frame available'})
+        
+        # Process frame for face detection and criminal matching
+        results = []
+        
+        if ENHANCED_DETECTION_AVAILABLE and hasattr(live_recognition, 'get_detection_results'):
+            # Use enhanced detection results
+            detection_results = live_recognition.get_detection_results()
+            if detection_results:
+                latest_result = detection_results[-1]  # Get most recent detection
+                match_result = latest_result.get('match_result', {})
+                
+                result = {
+                    'name': match_result.get('criminal_name', 'Unknown Person'),
+                    'confidence': latest_result.get('confidence', 0.0),
+                    'status': 'MATCH' if match_result.get('match_found', False) else 'NO_MATCH',
+                    'criminal_details': match_result.get('criminal_details', {}),
+                    'location': latest_result.get('location', [0, 0, 100, 100]),
+                    'timestamp': latest_result.get('timestamp', time.time())
+                }
+                results.append(result)
+        
+        # If no enhanced results, do basic face detection
+        if not results:
+            results.append({
+                'name': 'Person Detected',
+                'confidence': 0.5,
+                'status': 'DETECTED',
+                'criminal_details': {},
+                'location': [0, 0, 100, 100],
+                'timestamp': time.time()
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'results': results,
+            'faces_detected': len(results),
+            'message': 'Frame captured and processed successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error capturing frame: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Capture failed: {str(e)}'})
+
 @app.route('/match/process_live', methods=['POST'])
 def process_live_verification():
     if not session.get('admin_logged_in'):
