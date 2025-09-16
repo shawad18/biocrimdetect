@@ -455,6 +455,19 @@
             <p>Advanced real-time biometric identification system for suspect detection</p>
         </div>
         
+        <!-- Camera Permission Guide for Railway Users -->
+        <div id="camera-guide" style="display: none; background: linear-gradient(45deg, #4cc9f0, #7209b7); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 2px solid rgba(0, 255, 136, 0.3);">
+            <h3 style="color: #ffffff; margin: 0 0 10px 0;"><i class="fas fa-info-circle"></i> Enable Real Camera Access</h3>
+            <p style="color: #e0e0e0; margin: 0 0 15px 0;">To use your real camera instead of demo mode:</p>
+            <ol style="color: #e0e0e0; margin: 0; padding-left: 20px;">
+                <li><strong>Click "Start Camera"</strong> below</li>
+                <li><strong>Allow camera access</strong> when your browser asks for permission</li>
+                <li><strong>Look for the camera icon</strong> in your browser's address bar if no popup appears</li>
+                <li><strong>Select "Allow"</strong> to enable real-time face detection</li>
+            </ol>
+            <p style="color: #00ff88; margin: 15px 0 0 0; font-size: 14px;"><i class="fas fa-shield-alt"></i> Your camera data stays private and is processed locally in your browser</p>
+        </div>
+        
         <div class="main-content">
             <div class="video-section">
                 <div id="video-container">
@@ -576,6 +589,15 @@
                 matchesFound: 0,
                 sessionStart: null
             };
+            
+            // Show camera guide for Railway users
+            const isRailway = window.location.hostname.includes('railway.app');
+            if (isRailway) {
+                const cameraGuide = document.getElementById('camera-guide');
+                if (cameraGuide) {
+                    cameraGuide.style.display = 'block';
+                }
+            }
             
             // Update status display
             function updateStatus(camera, recognition, faces = 0) {
@@ -723,9 +745,9 @@
                 }
             });
             
-            // Unified camera start function - Smart camera prioritization
+            // Unified camera start function - Real camera prioritized for all environments
             function startCameraSystem() {
-                console.log('🚀 Starting camera system with smart prioritization...');
+                console.log('🚀 Starting camera system with real camera priority...');
                 
                 // Detect hosting environment
                 const isRailway = window.location.hostname.includes('railway.app');
@@ -734,33 +756,35 @@
                 
                 console.log(`🌐 Environment: ${isRailway ? 'Railway' : isLocalhost ? 'Local' : 'Other'} | Protocol: ${window.location.protocol}`);
                 
-                // For Railway or HTTPS environments, prioritize server camera
-                if (isRailway || (isHTTPS && !isLocalhost)) {
-                    console.log('🖥️ Hosted environment detected - prioritizing server camera...');
-                    updateStatus('Connecting...', 'Initializing server camera');
+                // Always try WebRTC first for real camera access
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    console.log('📹 Attempting real camera access via WebRTC...');
                     
-                    startServerCamera()
+                    if (isRailway) {
+                        updateStatus('Camera Permission', 'Click Allow when browser asks for camera access');
+                        
+                        // Show user guidance for Railway
+                        setTimeout(() => {
+                            if (!streamActive) {
+                                updateStatus('Need Permission', 'Please allow camera access to use real camera');
+                            }
+                        }, 3000);
+                    } else {
+                        updateStatus('Requesting Permission', 'Accessing camera');
+                    }
+                    
+                    startWebRTCCamera()
                         .then(() => {
-                            console.log('✅ Server camera started successfully');
+                            console.log('✅ Real camera (WebRTC) started successfully');
                         })
-                        .catch(serverError => {
-                            console.error('❌ Server camera failed:', serverError);
-                            console.log('🎭 Falling back to mock camera for demo...');
-                            updateStatus('Demo Mode', 'Using simulation camera');
-                            startMockCamera();
-                        });
-                } else {
-                    // For local development, try WebRTC first
-                    console.log('🏠 Local environment - trying WebRTC camera...');
-                    updateStatus('Requesting Permission', 'Accessing camera');
-                    
-                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                        startWebRTCCamera()
-                            .then(() => {
-                                console.log('✅ WebRTC camera started successfully');
-                            })
-                            .catch(error => {
-                                console.error('❌ WebRTC failed:', error);
+                        .catch(error => {
+                            console.error('❌ WebRTC failed:', error);
+                            
+                            if (isRailway) {
+                                console.log('🎭 WebRTC failed on Railway - using professional demo...');
+                                updateStatus('Demo Mode', 'Using professional simulation');
+                                startMockCamera();
+                            } else {
                                 console.log('🔄 Falling back to server camera...');
                                 updateStatus('Fallback Mode', 'Switching to server camera');
                                 
@@ -771,9 +795,17 @@
                                         updateStatus('Demo Mode', 'Using simulation camera');
                                         startMockCamera();
                                     });
-                            });
+                            }
+                        });
+                } else {
+                    console.log('📹 WebRTC not supported in this browser');
+                    
+                    if (isRailway) {
+                        console.log('🎭 No WebRTC support on Railway - using demo mode...');
+                        updateStatus('Demo Mode', 'Browser does not support camera access');
+                        startMockCamera();
                     } else {
-                        console.log('📹 WebRTC not supported, trying server camera...');
+                        console.log('🖥️ Trying server camera...');
                         updateStatus('Fallback Mode', 'WebRTC not available');
                         
                         startServerCamera()
@@ -1119,10 +1151,39 @@
                 } catch (error) {
                     console.error('❌ WebRTC camera access failed:', error);
                     
+                    // Enhanced error handling with user guidance
+                    let errorMessage = 'Camera access failed';
+                    let userGuidance = '';
+                    
+                    if (error.name === 'NotAllowedError') {
+                        errorMessage = 'Camera permission denied';
+                        if (isRailway) {
+                            userGuidance = 'Click the camera icon in your browser address bar and select "Allow"';
+                        } else {
+                            userGuidance = 'Please allow camera access and try again';
+                        }
+                    } else if (error.name === 'NotFoundError') {
+                        errorMessage = 'No camera found';
+                        userGuidance = 'Please connect a camera and refresh the page';
+                    } else if (error.name === 'NotReadableError') {
+                        errorMessage = 'Camera is busy';
+                        userGuidance = 'Close other apps using the camera and try again';
+                    } else if (error.name === 'OverconstrainedError') {
+                        errorMessage = 'Camera settings not supported';
+                        userGuidance = 'Your camera may not support the required settings';
+                    }
+                    
                     // Reset UI on error
                     startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera';
                     startBtn.disabled = false;
-                    updateStatus('Error', 'Camera access failed');
+                    updateStatus('Permission Needed', errorMessage);
+                    
+                    // Show user guidance
+                    if (userGuidance && isRailway) {
+                        setTimeout(() => {
+                            updateStatus('Help', userGuidance);
+                        }, 2000);
+                    }
                     
                     return Promise.reject(error);
                 }
