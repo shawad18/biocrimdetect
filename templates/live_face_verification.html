@@ -1129,7 +1129,6 @@
             }
             
             // Server Camera Fallback
-<<<<<<< HEAD
             function startServerCamera() {
                 console.log('🖥️ Starting server camera fallback...');
                 
@@ -1187,65 +1186,6 @@
                     return Promise.reject(error);
                 });
             }
-=======
-              function startServerCamera() {
-                  console.log('🖥️ Starting server camera fallback...');
-                  
-                  return fetch('/start_stream', {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json'
-                      }
-                  })
-                  .then(response => {
-                      console.log('🖥️ Server camera response received:', response.status);
-                      return response.json();
-                  })
-                  .then(data => {
-                      console.log('🖥️ Server camera data:', data);
-                      
-                      if (data.status === 'success') {
-                          console.log('✅ Server camera started, setting up video feed...');
-                          
-                          // Use server camera (original implementation)
-                          if (video) video.style.display = 'none';
-                          if (videoFallback) {
-                              videoFallback.style.display = 'block';
-                              videoFallback.src = "/video_feed?t=" + new Date().getTime();
-                          }
-                          
-                          const cameraMode = document.getElementById('camera-mode');
-                          if (cameraMode) {
-                              cameraMode.innerHTML = '<i class="fas fa-server"></i> Server Camera Mode';
-                          }
-                          
-                          // Update UI state
-                          streamActive = true;
-                          sessionStats.sessionStart = Date.now();
-                          updateStatus('Online', 'Server Camera Active');
-                          startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
-                          startBtn.disabled = false;
-                          
-                          if (captureBtn) captureBtn.disabled = false;
-                          if (stopBtn) stopBtn.disabled = false;
-                          if (scanningIndicator) scanningIndicator.classList.add('active');
-                          
-                          // Start polling for recognition results
-                          resultsInterval = setInterval(fetchRecognitionResults, 1000);
-                          
-                          console.log('✅ Server camera setup completed');
-                          return Promise.resolve();
-                      } else {
-                          console.error('❌ Server camera failed:', data.message);
-                          return Promise.reject(new Error('Server camera failed: ' + (data.message || 'Unknown error')));
-                      }
-                  })
-                  .catch(error => {
-                      console.error('❌ Server camera request failed:', error);
-                      return Promise.reject(error);
-                  });
-              }
->>>>>>> 0c685dee8a1d84a8dc709a0fca26b6067117bec6
             
             // Frame Processing for WebRTC
             function startFrameProcessing() {
