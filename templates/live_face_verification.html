@@ -476,7 +476,7 @@
                     <canvas id="capture-canvas" style="display: none;"></canvas>
                     <div id="recognition-overlay"></div>
                     <div class="scanning-indicator" id="scanning-indicator">
-                        <i class="fas fa-search"></i> Scanning for faces...
+                        <i class="fas fa-camera"></i> Ready for Capture
                     </div>
                     <div class="camera-mode-indicator" id="camera-mode">
                         <i class="fas fa-camera"></i> Browser Camera Mode
@@ -907,7 +907,7 @@
                     // Update UI state
                     streamActive = true;
                     sessionStats.sessionStart = Date.now();
-                    updateStatus('Online', 'Demo Camera Active');
+                    updateStatus('Online', 'Ready for Capture');
                     startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
                     startBtn.disabled = false;
                     
@@ -915,8 +915,8 @@
                     if (stopBtn) stopBtn.disabled = false;
                     if (scanningIndicator) scanningIndicator.classList.add('active');
                     
-                    // Start mock face detection simulation
-                    startMockDetection();
+                    // Demo camera ready for manual capture
+                    // Removed automatic detection - now manual only
                     
                     console.log('✅ Mock camera started successfully');
                     
@@ -1014,10 +1014,10 @@
                 // Store interval for cleanup
                 window.mockDetectionInterval = mockDetectionInterval;
                 
-                // Show initial message
+                // Demo camera ready for manual capture
                 setTimeout(() => {
                     if (streamActive) {
-                        updateStatus('Demo Active', 'Scanning for faces...');
+                        updateStatus('Online', 'Click Capture & Identify to test');
                     }
                 }, 1000);
             }
@@ -1121,10 +1121,10 @@
                         });
                     }
                     
-                    // Start processing frames
+                    // Video ready for manual capture
                     video.addEventListener('playing', () => {
-                        console.log('📹 Video is playing, starting frame processing...');
-                        startFrameProcessing();
+                        console.log('📹 Video is playing, ready for manual capture...');
+                        // Removed automatic frame processing - now manual only
                     });
                     
                     // Add error handling for video element
@@ -1137,7 +1137,7 @@
                     // Update UI state
                     streamActive = true;
                     sessionStats.sessionStart = Date.now();
-                    updateStatus('Online', 'Live Camera Active');
+                    updateStatus('Online', 'Ready for Capture');
                     startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
                     startBtn.disabled = false;
                     
@@ -1224,7 +1224,7 @@
                         // Update UI state
                         streamActive = true;
                         sessionStats.sessionStart = Date.now();
-                        updateStatus('Online', 'Server Camera Active');
+                        updateStatus('Online', 'Ready for Capture');
                         startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
                         startBtn.disabled = false;
                         
@@ -1232,8 +1232,8 @@
                         if (stopBtn) stopBtn.disabled = false;
                         if (scanningIndicator) scanningIndicator.classList.add('active');
                         
-                        // Start polling for recognition results
-                        resultsInterval = setInterval(fetchRecognitionResults, 1000);
+                        // Server camera ready for manual capture
+                        // Removed automatic polling - now manual only
                         
                         console.log('✅ Server camera setup completed');
                         return Promise.resolve();
